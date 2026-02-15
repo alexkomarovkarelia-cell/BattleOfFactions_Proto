@@ -4,6 +4,8 @@ using UnityEngine;
 // EnemyHealth — отвечает только за здоровье врага и смерть.
 // НЕ двигает, НЕ атакует, НЕ хранит шансы дропа.
 [RequireComponent(typeof(Collider))]
+
+
 public class EnemyHealth : MonoBehaviour
 {
     [Header("Здоровье")]
@@ -31,6 +33,8 @@ public class EnemyHealth : MonoBehaviour
     // Чтобы другие скрипты могли узнать, жив враг или нет
     public bool IsDead => isDead;
 
+    private CharacterSFX3D sfx3D;
+
     private void Awake()
     {
         currentHealth = maxHealth;
@@ -38,6 +42,8 @@ public class EnemyHealth : MonoBehaviour
         rend = GetComponent<Renderer>();
         if (rend != null)
             originalColor = rend.material.color;
+        //Звук 3Д
+        sfx3D = GetComponent<CharacterSFX3D>();
     }
 
     // Это будет вызывать игрок (меч/пуля/удар)
@@ -52,8 +58,15 @@ public class EnemyHealth : MonoBehaviour
         if (rend != null)
             StartCoroutine(DamageFlash());
 
+        // ✅ Если умер — уходим в Die (там будет PlayDeath)
         if (currentHealth <= 0)
+        {
             Die();
+            return;
+        }
+
+        // ✅ Если выжил — играем звук получения удара
+        sfx3D?.PlayHit();
     }
 
     // Спавн эффекта смерти
@@ -107,6 +120,8 @@ public class EnemyHealth : MonoBehaviour
 
         // 7) Удаляем врага через задержку
         Destroy(gameObject, destroyDelay);
+
+        sfx3D?.PlayDeath(); // ✅ 3D смерть
     }
 
     private IEnumerator DamageFlash()

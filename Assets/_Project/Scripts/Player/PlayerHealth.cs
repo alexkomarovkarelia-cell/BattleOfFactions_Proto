@@ -5,72 +5,64 @@
 public class PlayerHealth : MonoBehaviour
 {
     [Header("Настройки здоровья")]
-    [SerializeField] private int maxHealth = 100; // максимум HP
-    [SerializeField] private int currentHealth;   // текущее HP
+    [SerializeField] private int maxHealth = 100;
+    [SerializeField] private int currentHealth;
 
     [Header("Ссылка на HUD (UI)")]
     [SerializeField] private HUDController hud;
-    // HUDController у тебя на Canvas/HUD объекте и умеет показывать HP через SetHealth()
 
-    // Чтобы другие скрипты могли прочитать здоровье (но не менять напрямую)
     public int CurrentHealth => currentHealth;
     public int MaxHealth => maxHealth;
 
+    private CharacterSFX3D sfx3D; // 3D звук игрока
+
     private void Awake()
     {
-        // Если HUD не назначен вручную — попробуем найти на сцене автоматически
+        // 1) Берём 3D звук с префаба игрока (если есть)
+        sfx3D = GetComponent<CharacterSFX3D>();
+
+        // 2) Ищем HUD, если не назначен вручную
         if (hud == null)
             hud = FindFirstObjectByType<HUDController>();
 
-        // На старте ставим полное здоровье
+        // 3) Стартовое здоровье
         currentHealth = maxHealth;
 
-        // ✅ Сразу обновляем UI, чтобы в начале игры показало правильные значения
+        // 4) Обновляем UI
         UpdateHud();
     }
 
-    // Лечение (медкит, будущие умения)
     public void Heal(int amount)
     {
-        // Защита: если 0 или отрицательное — не лечим
         if (amount <= 0) return;
 
         currentHealth += amount;
-
-        // Ограничиваем сверху: нельзя выше maxHealth
         if (currentHealth > maxHealth)
             currentHealth = maxHealth;
 
-        // ✅ Обновляем UI после лечения
         UpdateHud();
     }
 
-    // Получение урона (враг, ловушка и т.п.)
     public void TakeDamage(int damage)
     {
         if (damage <= 0) return;
 
         currentHealth -= damage;
-        // ✅ Игрок получил урон — играем hurt
-        SFXPlayer.I?.PlayHurtPlayer();
 
-        // Ограничиваем снизу: нельзя ниже 0
+        // ✅ 3D звук получения урона игроком
+        sfx3D?.PlayHit();
+
         if (currentHealth < 0)
             currentHealth = 0;
 
-        // ✅ Обновляем UI после урона
         UpdateHud();
 
-        // Если HP стало 0 — умираем
         if (currentHealth == 0)
             Die();
     }
 
-    // Вынесли обновление HUD в отдельный метод, чтобы не повторять код
     private void UpdateHud()
     {
-        // hud?. означает: "вызвать, только если hud не null"
-        // У тебя в HUDController метод называется SetHealth(float current, float max)
         hud?.SetHealth(currentHealth, maxHealth);
     }
 
@@ -78,23 +70,9 @@ public class PlayerHealth : MonoBehaviour
     {
         Debug.Log("Player died!");
 
-       
+        // ✅ Показать UI поражения
+        hud?.ShowGameOver();
 
-        // 1) Показать UI поражения
-        if (hud != null)
-        {
-            hud.ShowGameOver();
-        }
-        else
-        {
-            // на всякий случай, если ссылка не назначилась
-            HUDController foundHud = FindFirstObjectByType<HUDController>();
-            if (foundHud != null) foundHud.ShowGameOver();
-        }
-
-        // 2) Тут позже можно отключить управление игроком, если нужно
+        // Позже можно отключить управление игроком
     }
-
-
-    // Тест кнопками (можно оставить на время теста, потом убрать)
 }
