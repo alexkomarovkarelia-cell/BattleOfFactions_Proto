@@ -2,12 +2,14 @@
 
 // Этот скрипт висит на игроке.
 // Его задача: принять лут (монеты/аптечка/предметы) и применить его.
+// ВАЖНО (после Блока B):
+// - ЗВУК и VFX подбора делает САМ ПРЕДМЕТ ЛУТА (WorldPickup + AudioSource 3D + VFX)
+// - PlayerLootReceiver хранит только ЛОГИКУ (монеты/лечение/инвентарь)
 public class PlayerLootReceiver : MonoBehaviour
 {
     [Header("Ссылки (на другие компоненты)")]
     [SerializeField] private HUDController hud;         // UI: показывает монеты и т.д.
     [SerializeField] private PlayerHealth playerHealth; // Здоровье игрока
-    [SerializeField] private SFXPlayer sfx;             // ✅ Звуки (монеты/лечилка)
 
     [Header("Данные игрока")]
     [SerializeField] private int coins = 0; // текущее количество монет
@@ -19,10 +21,6 @@ public class PlayerLootReceiver : MonoBehaviour
 
         if (playerHealth == null)
             playerHealth = GetComponent<PlayerHealth>();
-
-        // ✅ Ищем SFXPlayer на сцене (объект SFX)
-        if (sfx == null)
-            sfx = FindFirstObjectByType<SFXPlayer>();
 
         if (hud == null)
             Debug.LogWarning("HUDController не найден. Монеты будут считаться, но UI не обновится.");
@@ -45,20 +43,17 @@ public class PlayerLootReceiver : MonoBehaviour
             case LootKind.Coins:
                 coins += amount;
                 hud?.SetCoins(coins);
-
-                // ✅ звук монеты
-                sfx?.PlayCoin();
+                // Звук монеты НЕ здесь. Он в WorldPickup (3D).
                 break;
 
             case LootKind.Medkit:
                 if (playerHealth != null)
                     playerHealth.Heal(amount);
-
-                // ✅ звук лечения
-                sfx?.PlayMedkit();
+                // Звук лечения НЕ здесь. Он в WorldPickup (3D).
                 break;
 
             case LootKind.Item:
+                // Потом добавим инвентарь
                 break;
 
             default:

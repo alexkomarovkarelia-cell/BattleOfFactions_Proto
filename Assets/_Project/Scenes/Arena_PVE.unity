@@ -119,63 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1001 &140095989
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 28.576832
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.5000094
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 7.6740084
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7521182688566037048, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_Name
-      value: Loot_Medkit (1)
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
 --- !u!1 &233064693
 GameObject:
   m_ObjectHideFlags: 0
@@ -1134,13 +1077,9 @@ MonoBehaviour:
   source: {fileID: 615091418}
   coinClip: {fileID: 8300000, guid: 9ccbb7c9d62579644b78ff016207887c, type: 3}
   medkitClip: {fileID: 8300000, guid: 9a1b53165c6ecc740926dc3618d478a0, type: 3}
-  hitEnemyClip: {fileID: 8300000, guid: 67bed012faede3249ae84d63886a501b, type: 3}
-  hurtPlayerClip: {fileID: 8300000, guid: fd2c0038de51fae40bc3b70bf4498416, type: 3}
   startClip: {fileID: 8300000, guid: 912fb2e6e6d32d54393739bf11c8834c, type: 3}
   winClip: {fileID: 8300000, guid: 49184e846fb7ce14784d6a5ea79e3f31, type: 3}
   loseClip: {fileID: 8300000, guid: 3933416466c6b4f45abc83b39e99a168, type: 3}
-  randomPitchForCombat: 1
-  combatPitchRange: {x: 0.95, y: 1.05}
 --- !u!82 &615091418
 AudioSource:
   m_ObjectHideFlags: 0
@@ -2150,7 +2089,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 912274072}
   m_CullTransparentMesh: 1
---- !u!1001 &964905256
+--- !u!1001 &1001994973
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -2160,15 +2099,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -26.987003
+      value: 5.6064157
       objectReference: {fileID: 0}
     - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.500001
+      value: 0.00000029900593
       objectReference: {fileID: 0}
     - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -11.561703
+      value: 17.16032
       objectReference: {fileID: 0}
     - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
       propertyPath: m_LocalRotation.w
@@ -2200,7 +2139,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7521182688566037048, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
       propertyPath: m_Name
-      value: Loot_Medkit (2)
+      value: PF_Medkit
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -3642,63 +3581,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1729168050}
   m_CullTransparentMesh: 1
---- !u!1001 &1749291404
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -2.5036912
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.5000005
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 19.590956
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4399747456034496833, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7521182688566037048, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
-      propertyPath: m_Name
-      value: Loot_Medkit
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: a22e685d39a5f0e46ac0f87383993690, type: 3}
 --- !u!1 &1778849155
 GameObject:
   m_ObjectHideFlags: 0
@@ -4399,7 +4281,5 @@ SceneRoots:
   - {fileID: 353767955}
   - {fileID: 858902571}
   - {fileID: 1026033074}
-  - {fileID: 1749291404}
-  - {fileID: 140095989}
-  - {fileID: 964905256}
   - {fileID: 615091419}
+  - {fileID: 1001994973}
