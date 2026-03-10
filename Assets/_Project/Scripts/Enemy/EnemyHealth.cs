@@ -34,6 +34,8 @@ public class EnemyHealth : MonoBehaviour
     public bool IsDead => isDead;
 
     private CharacterSFX3D sfx3D;
+    // Базовое значение HP, чтобы мы могли честно умножать от "оригинала"
+    private int baseMaxHealth;
 
     private void Awake()
     {
@@ -44,6 +46,7 @@ public class EnemyHealth : MonoBehaviour
             originalColor = rend.material.color;
         //Звук 3Д
         sfx3D = GetComponent<CharacterSFX3D>();
+        baseMaxHealth = maxHealth; // запоминаем исходное значение из инспектора
     }
 
     // Это будет вызывать игрок (меч/пуля/удар)
@@ -132,5 +135,15 @@ public class EnemyHealth : MonoBehaviour
         // Если не умер — вернём исходный цвет
         if (!isDead)
             rend.material.color = originalColor;
+    }
+    // Вызывается спавнером сразу после Instantiate врага
+    public void ApplyDifficulty(float hpMultiplier)
+    {
+        // Защита от странных значений
+        if (hpMultiplier <= 0f) hpMultiplier = 1f;
+
+        // Пересчитываем максимум и сразу текущее HP
+        maxHealth = Mathf.Max(1, Mathf.CeilToInt(baseMaxHealth * hpMultiplier));
+        currentHealth = maxHealth;
     }
 }

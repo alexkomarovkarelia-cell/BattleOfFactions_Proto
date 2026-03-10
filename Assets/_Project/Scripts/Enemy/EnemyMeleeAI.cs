@@ -17,10 +17,14 @@ public class EnemyMeleeAttack : MonoBehaviour
     private PlayerHealth playerHealth;
     private EnemyHealth enemyHealth;
     private float lastAttackTime = -999f;
+    private int baseAttackDamage;
+    private float baseAttackCooldown;
 
     private void Awake()
     {
         enemyHealth = GetComponent<EnemyHealth>();
+        baseAttackDamage = attackDamage;
+        baseAttackCooldown = attackCooldown;
     }
 
     private void Start()
@@ -70,5 +74,13 @@ public class EnemyMeleeAttack : MonoBehaviour
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
+    }
+    public void ApplyDifficulty(float damageMultiplier, float cooldownMultiplier)
+    {
+        if (damageMultiplier <= 0f) damageMultiplier = 1f;
+        if (cooldownMultiplier <= 0f) cooldownMultiplier = 1f;
+
+        attackDamage = Mathf.Max(1, Mathf.RoundToInt(baseAttackDamage * damageMultiplier));
+        attackCooldown = Mathf.Max(0.05f, baseAttackCooldown * cooldownMultiplier);
     }
 }

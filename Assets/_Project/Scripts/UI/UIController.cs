@@ -41,6 +41,7 @@ public class HUDController : MonoBehaviour
     [Header("Start Panel")]
     [SerializeField] private GameObject startPanel; // панель со стартовой кнопкой
     [SerializeField] private Button startButton;    // кнопка START
+    [SerializeField] private TMP_Dropdown difficultyDropdown;
 
     // ===== Ссылка на спавнер =====
     // HUD запускает спавн только после нажатия START
@@ -101,7 +102,13 @@ public class HUDController : MonoBehaviour
 
         // Возвращаем "нормальное течение времени"
         Time.timeScale = 1f;
-
+        // Перед стартом сообщаем спавнеру выбранную сложность
+        if (difficultyDropdown != null && spawner != null)
+        {
+            // 0=Easy, 1=Normal, 2=Hard (как в dropdown)
+            var id = (ArenaDifficultyId)difficultyDropdown.value;
+            spawner.SetDifficulty(id);
+        }
         // Запускаем спавн врагов, если спавнер назначен
         if (spawner != null)
             spawner.BeginSpawning();

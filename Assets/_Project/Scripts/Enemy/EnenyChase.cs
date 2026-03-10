@@ -21,6 +21,7 @@ public class EnemyChase : MonoBehaviour
     public LayerMask obstacleMask = ~0;     // какие слои считаем препятствиями
 
     private Rigidbody rb;
+    private float baseSpeed;
 
     private void Awake()
     {
@@ -32,6 +33,7 @@ public class EnemyChase : MonoBehaviour
         // Плавнее и надёжнее при столкновениях
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        baseSpeed = speed;
     }
 
     private void Start()
@@ -121,6 +123,11 @@ public class EnemyChase : MonoBehaviour
 
         Gizmos.color = Color.yellow;
         Gizmos.DrawLine(origin, origin + dir * avoidRayDistance);
+    }
+    public void ApplyDifficulty(float speedMultiplier)
+    {
+        if (speedMultiplier <= 0f) speedMultiplier = 1f;
+        speed = baseSpeed * speedMultiplier;
     }
 }
 

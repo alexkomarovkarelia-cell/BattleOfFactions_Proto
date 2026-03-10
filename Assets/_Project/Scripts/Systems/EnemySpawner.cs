@@ -56,16 +56,54 @@ public class EnemySpawner : MonoBehaviour
 
     // Чтобы не спавнить 2 раза подряд в одной и той же точке
     private int lastSpawnIndex = -1;
+    [Header("Difficulty (Arena)")]
+    [SerializeField] private ArenaDifficultyId startDifficulty = ArenaDifficultyId.Normal;
+
+    // Профили (ScriptableObject)
+    [SerializeField] private ArenaDifficultyProfile easyProfile;
+    [SerializeField] private ArenaDifficultyProfile normalProfile;
+    [SerializeField] private ArenaDifficultyProfile hardProfile;
+
+    // Текущий активный профиль (выбран игроком)
+    private ArenaDifficultyProfile activeProfile;
+    private ArenaDifficultyProfile GetProfile(ArenaDifficultyId id)
+    {
+        switch (id)
+        {
+            case ArenaDifficultyId.Easy: return easyProfile;
+            case ArenaDifficultyId.Hard: return hardProfile;
+            default: return normalProfile;
+        }
+    }
+
+    // Вызываем из UI перед стартом
+    public void SetDifficulty(ArenaDifficultyId id)
+    {
+        activeProfile = GetProfile(id);
+
+        // Если профили не назначены — просто работаем как раньше
+        if (activeProfile == null) return;
+
+        // Опционально меняем totalWaves (если override включен)
+        if (activeProfile.overrideTotalWaves)
+        {
+            totalWaves = Mathf.Max(1, activeProfile.totalWaves);
+            hud?.SetWave(0, totalWaves); // обновим UI ещё до старта
+        }
+    }
 
     private void Start()
     {
         // Если HUD не назначен в инспекторе — пробуем найти автоматически в сцене
         if (hud == null) hud = FindFirstObjectByType<HUDController>();
+        // Выбираем сложность по умолчанию (Normal)
+        SetDifficulty(startDifficulty);
 
         // До старта показываем 0/totalWaves
         hud?.SetWave(0, totalWaves);
         hud?.SetWaveProgress(0, 0);
         hud?.HideCenterMessage();
+       
     }
 
     // Вызывается, когда нажали "Start" (или по твоей логике)
@@ -196,6 +234,7 @@ public class EnemySpawner : MonoBehaviour
 
         // 4) Создаём врага в позиции точки
         GameObject enemy = Instantiate(enemyPrefab, point.position, point.rotation);
+        ApplyDifficultyToEnemy(enemy);
 
         // 5) Обновляем счётчики этой волны
         spawnedThisWave++;
@@ -222,5 +261,20 @@ public class EnemySpawner : MonoBehaviour
 
         // Обновляем прогресс на HUD: убили / нужно убить
         hud?.SetWaveProgress(killedThisWave, enemiesThisWave);
+    }
+    private void ApplyDifficultyToEnemy(GameObject enemy)
+    {
+        if (enemy == null) return;
+        if (activeProfile == null) return; // если профиль не назначен — ничего не делаем
+
+        // HP
+        enemy.GetComponent<EnemyHealth>()?.ApplyDifficulty(activeProfile.enemyHpMultiplier);
+
+        // Скорость
+        enemy.GetComponent<EnemyChase>()?.ApplyDifficulty(activeProfile.enemySpeedMultiplier);
+
+        // Урон/кулдаун атаки
+        enemy.GetComponent<EnemyMeleeAttack>()
+            ?.ApplyDifficulty(activeProfile.enemyDamageMultiplier, activeProfile.enemyAttackCooldownMultiplier);
     }
 }
