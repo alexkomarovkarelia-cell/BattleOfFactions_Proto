@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f1f27733ff9576243896f722919513ec, type: 3}
   m_Name: DIF_Arena_Hard
   m_EditorClassIdentifier: Assembly-CSharp::ArenaDifficultyProfile
-  id: 1
+  id: 2
   overrideTotalWaves: 1
   totalWaves: 50
   enemyHpMultiplier: 1.25

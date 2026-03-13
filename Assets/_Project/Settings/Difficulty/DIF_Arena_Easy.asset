@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f1f27733ff9576243896f722919513ec, type: 3}
-  m_Name: DIF_Arene_Easy
+  m_Name: DIF_Arena_Easy
   m_EditorClassIdentifier: Assembly-CSharp::ArenaDifficultyProfile
   id: 0
   overrideTotalWaves: 1
