@@ -1924,33 +1924,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!82 &632563354 stripped
-AudioSource:
-  m_CorrespondingSourceObject: {fileID: -3555696033155466457, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-  m_PrefabInstance: {fileID: 2585125817136740922}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &632563355 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: -6716986814714485529, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-  m_PrefabInstance: {fileID: 2585125817136740922}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0cf8d84fcf1abe34ca02e4de592f0950, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterSFX3D
---- !u!114 &632563358 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6471075037628034207, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-  m_PrefabInstance: {fileID: 2585125817136740922}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 04a8a6524eb9e5f4a8d2d66ee6aac4bd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
 --- !u!1 &648561181
 GameObject:
   m_ObjectHideFlags: 0
@@ -3079,6 +3052,17 @@ Transform:
   - {fileID: 233064694}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1046350980 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3187304000828960267, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+  m_PrefabInstance: {fileID: 2585125817136740922}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6252936d60743c4186001c09c8ea7e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatStats
 --- !u!1 &1064586767
 GameObject:
   m_ObjectHideFlags: 0
@@ -5444,10 +5428,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: -6716986814714485529, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-      propertyPath: source
-      value: 
-      objectReference: {fileID: 632563354}
     - target: {fileID: 2424290797558468614, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -5489,25 +5469,17 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2440191616310563087, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-      propertyPath: attackKey
-      value: 19
-      objectReference: {fileID: 0}
-    - target: {fileID: 2440191616310563087, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-      propertyPath: playerSfx
+      propertyPath: combatStats
       value: 
-      objectReference: {fileID: 632563355}
+      objectReference: {fileID: 1046350980}
     - target: {fileID: 2440191616310563087, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-      propertyPath: enemyMask.m_Bits
-      value: 128
-      objectReference: {fileID: 0}
+      propertyPath: currentAttackData
+      value: 
+      objectReference: {fileID: 11400000, guid: b1872f47bc40c3449b8c3f49eba6d808, type: 2}
     - target: {fileID: 4975350494623051148, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
       propertyPath: hud
       value: 
       objectReference: {fileID: 858902572}
-    - target: {fileID: 4975350494623051148, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
-      propertyPath: playerHealth
-      value: 
-      objectReference: {fileID: 632563358}
     - target: {fileID: 6471075037628034207, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
       propertyPath: hud
       value: 

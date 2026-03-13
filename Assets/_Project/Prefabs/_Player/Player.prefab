@@ -162,6 +162,7 @@ GameObject:
   - component: {fileID: 4975350494623051148}
   - component: {fileID: -6716986814714485529}
   - component: {fileID: -3555696033155466457}
+  - component: {fileID: 3187304000828960267}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -340,7 +341,9 @@ MonoBehaviour:
   damage: 10
   enemyMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 128
+  playerSfx: {fileID: -6716986814714485529}
+  attackCooldown: 0.35
 --- !u!114 &4975350494623051148
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -354,8 +357,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLootReceiver
   hud: {fileID: 0}
-  playerHealth: {fileID: 0}
-  sfx: {fileID: 0}
+  playerHealth: {fileID: 6471075037628034207}
   coins: 0
 --- !u!114 &-6716986814714485529
 MonoBehaviour:
@@ -369,7 +371,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cf8d84fcf1abe34ca02e4de592f0950, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterSFX3D
-  source: {fileID: 0}
+  source: {fileID: -3555696033155466457}
   hitClips:
   - {fileID: 8300000, guid: 7063d1f9d088798468c846b7f010068d, type: 3}
   attackClips:
@@ -475,3 +477,18 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &3187304000828960267
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8733653577997185037}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6252936d60743c4186001c09c8ea7e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatStats
+  flatDamageBonus: 0
+  flatRadiusBonus: 0
+  attackSpeedMultiplier: 1
