@@ -32,6 +32,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Interact",
+                    "type": "Button",
+                    "id": "26fb247f-8b41-442d-a976-c6f8e7e28d54",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -103,8 +112,8 @@
                 },
                 {
                     "name": "",
-                    "id": "0204efd0-d87b-4e34-9d95-5cabfb3db4fb",
-                    "path": "<Keyboard>/e",
+                    "id": "8c257240-765c-40e5-bedd-7843d027a72b",
+                    "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -114,12 +123,12 @@
                 },
                 {
                     "name": "",
-                    "id": "8c257240-765c-40e5-bedd-7843d027a72b",
-                    "path": "<Mouse>/leftButton",
+                    "id": "e903fd1a-9641-4870-ba79-906fc29125e7",
+                    "path": "<Keyboard>/e",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "Attack",
+                    "action": "Interact",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
