@@ -26,10 +26,14 @@ public class PlayerMovement : MonoBehaviour
     public float moveSpeed = 5f;
 
     [Tooltip("Скорость поворота игрока")]
-    public float rotationSpeed = 10f;
+    public float rotationSpeed = 4f;
 
     [Tooltip("Сила прыжка вверх")]
     public float jumpForce = 5f;
+
+    [Tooltip("Множитель скорости движения назад. 0.5 = назад идём в 2 раза медленнее")]
+    [Range(0.1f, 1f)]
+    public float backwardSpeedMultiplier = 0.5f;
 
     // =========================================================
     // ВНУТРЕННИЕ ПЕРЕМЕННЫЕ
@@ -197,10 +201,30 @@ public class PlayerMovement : MonoBehaviour
         // Переводим ввод в мировое направление
         Vector3 movement = yawRot * new Vector3(moveInput.x, 0f, moveInput.y);
 
-        // Горизонтальная скорость
-        Vector3 horizontalVelocity = movement * moveSpeed;
+        // Нормализуем направление, чтобы по диагонали скорость не была выше,
+        // чем по прямой.
+        if (movement.sqrMagnitude > 1f)
+        {
+            movement.Normalize();
+        }
+
+        // Итоговая скорость движения.
+        // По умолчанию идём с обычной скоростью.
+        float currentMoveSpeed = moveSpeed;
+
+        // Если есть движение назад (ось Y меньше нуля),
+        // уменьшаем скорость движения.
+        // Это даст ощущение, что вперёд идти легче, чем отступать назад.
+        if (moveInput.y < -0.01f)
+        {
+            currentMoveSpeed *= backwardSpeedMultiplier;
+        }
+
+        // Получаем горизонтальную скорость
+        Vector3 horizontalVelocity = movement * currentMoveSpeed;
 
         // Двигаем Rigidbody, но сохраняем текущую скорость по Y
+        // (чтобы не ломать прыжок и падение)
         rb.linearVelocity = new Vector3(horizontalVelocity.x, rb.linearVelocity.y, horizontalVelocity.z);
     }
 
@@ -215,12 +239,11 @@ public class PlayerMovement : MonoBehaviour
         bool freeLook = Mouse.current != null && Mouse.current.rightButton.isPressed;
         if (freeLook)
             return;
-
-        // Если игрок жмёт ЧИСТО назад (только S, без A и D),
-        // не разворачиваем его.
-        // Это позволяет пятиться, глядя вперёд.
-        bool pureBackMove = moveInput.y < -0.01f && Mathf.Abs(moveInput.x) < 0.01f;
-        if (pureBackMove)
+        // Если есть движение назад (чисто назад или по диагонали назад),
+        // то НЕ разворачиваем игрока автоматически.
+        // Это даёт нормальное тактическое отступление лицом к врагу.
+        bool hasBackwardMove = moveInput.y < -0.01f;
+        if (hasBackwardMove)
             return;
 
         // Определяем угол, относительно которого считаем движение
