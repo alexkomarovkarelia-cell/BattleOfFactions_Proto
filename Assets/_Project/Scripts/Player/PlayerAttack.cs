@@ -1,233 +1,174 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Этот скрипт отвечает за АТАКУ игрока.
+// PlayerAttack
+// Этот скрипт отвечает ТОЛЬКО за логику базовой ближней атаки игрока.
 //
-// ВАЖНО:
-// Сейчас это основа именно для БЛИЖНЕГО БОЯ (кулаки).
-// Мы не делаем здесь "всё оружие мира сразу".
-// Мы делаем ПРАВИЛЬНЫЙ ФУНДАМЕНТ:
+// Что он делает:
+// 1. Хранит параметры кулачного удара
+// 2. Ищет врага в радиусе удара
+// 3. Выбирает ОДНУ ближайшую цель
+// 4. Наносит ей урон
 //
-// 1) Игрок нажимает кнопку атаки через Input Actions
-// 2) Скрипт проверяет кулдаун
-// 3) Берёт базовые данные атаки из MeleeAttackData
-// 4) Берёт бонусы игрока из PlayerCombatStats
-// 5) Ищет цели в радиусе удара
-// 6) Наносит урон каждой цели только 1 раз за удар
-//
-// Почему это хороший путь:
-// - сейчас работают кулаки
-// - потом можно сделать новый Data Asset для меча / копья / топора
-// - позже можно добавить бонусы, штрафы, криты, требования по статам
-// - не придётся переписывать систему с нуля
+// Важно:
+// - Сейчас для удобства оставлен ВРЕМЕННЫЙ ввод через ЛКМ
+// - Позже ввод вынесем в отдельный InputHandler
+// - Тогда InputHandler будет вызывать метод TryAttack()
 public class PlayerAttack : MonoBehaviour
 {
-    [Header("Данные текущей атаки")]
-    [SerializeField] private MeleeAttackData currentAttackData;
-    // Это ссылка на ScriptableObject с БАЗОВЫМИ параметрами атаки.
-    // Сейчас сюда назначим data asset кулаков.
-    // Позже сюда можно будет назначить data asset меча, копья и т.д.
+    [Header("ВРЕМЕННЫЙ ввод (потом уберём в отдельный InputHandler)")]
+    [SerializeField] private bool allowTemporaryMouseInput = true;
+    // Пока true -> игрок может атаковать ЛКМ.
+    // Позже, когда сделаем отдельный скрипт ввода, поставим false,
+    // и атака будет вызываться не отсюда, а из InputHandler.
 
     [Header("Точка удара")]
     [SerializeField] private Transform attackPoint;
-    // Это точка перед игроком, вокруг которой ищем цели.
-    // Обычно это пустой объект перед персонажем.
+    // Это пустой объект перед игроком.
+    // Из этой точки мы ищем врагов в радиусе.
+    // Его нужно создать вручную как дочерний объект игрока.
 
-    [Header("Дополнительные ссылки")]
-    [SerializeField] private CharacterSFX3D playerSfx;
-    // Сюда можно вручную назначить компонент со звуками игрока.
-    // Если не назначишь - попробуем найти автоматически в Awake().
+    [Header("Слой врагов")]
+    [SerializeField] private LayerMask enemyMask;
+    // Здесь выбираем слой Enemy.
+    // Скрипт будет искать только объекты на этом слое.
 
-    [SerializeField] private PlayerCombatStats combatStats;
-    // Здесь лежат бонусы игрока:
-    // + урон
-    // + радиус
-    // + скорость атаки
-    // Позже сюда же можно расширить:
-    // шанс крита, множитель крита, штрафы, бафы, дебафы и т.д.
+    [Header("Базовые параметры кулачного боя")]
+    [SerializeField] private int baseDamage = 15;
+    // Базовый урон кулаком
 
-    // Экземпляр Input Actions.
-    // Мы уже используем такой же подход в PlayerMovement.
-    private PlayerInputActions inputActions;
+    [SerializeField] private float attackRange = 1.45f;
+    // Радиус удара.
+    // Если будет тяжело попадать — увеличим чуть позже.
 
-    // Время, когда снова разрешено атаковать.
-    // Пока текущее время меньше nextAttackTime - новая атака запрещена.
+    [SerializeField] private float attackCooldown = 0.30f;
+    // Задержка между ударами.
+    // Чем меньше число — тем быстрее игрок бьёт.
+
+    // Время, когда игрок сможет ударить снова
     private float nextAttackTime = 0f;
 
-    // Буфер коллайдеров для OverlapSphereNonAlloc.
-    // Почему так:
-    // обычный OverlapSphere создаёт новый массив и может плодить мусор в памяти.
-    // Здесь мы создаём массив ОДИН раз и переиспользуем его.
-    //
-    // 16 сейчас вполне хватит для MVP арены.
-    // Если потом в радиусе может быть больше целей - увеличим размер.
-    private readonly Collider[] hitBuffer = new Collider[16];
-
-    // Набор уникальных целей.
-    // Нужен, чтобы один и тот же враг не получил урон дважды за один удар,
-    // если у него несколько коллайдеров.
-    private readonly HashSet<EnemyHealth> uniqueEnemies = new HashSet<EnemyHealth>();
-
-    // Awake вызывается самым первым при запуске объекта.
-    private void Awake()
+    private void Update()
     {
-        // Создаём объект новой системы ввода.
-        inputActions = new PlayerInputActions();
-
-        // Если ссылки не назначены руками - пытаемся найти их автоматически.
-        if (playerSfx == null)
-            playerSfx = GetComponent<CharacterSFX3D>();
-
-        if (combatStats == null)
-            combatStats = GetComponent<PlayerCombatStats>();
-    }
-
-    // OnEnable вызывается, когда объект/скрипт включается.
-    private void OnEnable()
-    {
-        // Включаем карту действий Player.
-        inputActions.Player.Enable();
-
-        // Подписываемся на кнопку Attack.
-        // Когда действие Attack сработает - вызовется OnAttackPerformed.
-        inputActions.Player.Attack.performed += OnAttackPerformed;
-    }
-
-    // OnDisable вызывается, когда объект/скрипт выключается.
-    private void OnDisable()
-    {
-        // Очень важно отписываться от событий,
-        // чтобы не получить двойные вызовы и странные ошибки.
-        inputActions.Player.Attack.performed -= OnAttackPerformed;
-
-        // Выключаем карту действий Player.
-        inputActions.Player.Disable();
-    }
-
-    // Этот метод вызывается системой ввода, когда игрок нажал кнопку Attack.
-    private void OnAttackPerformed(InputAction.CallbackContext context)
-    {
-        TryAttack();
-    }
-
-    // Основной метод попытки атаки.
-    // Здесь мы:
-    // - проверяем настройки
-    // - проверяем кулдаун
-    // - считаем итоговые параметры удара
-    // - запускаем сам удар
-    private void TryAttack()
-    {
-        // Проверяем, назначены ли данные атаки.
-        if (currentAttackData == null)
+        // ВРЕМЕННО:
+        // Пока у нас нет отдельного InputHandler, разрешаем атаку через ЛКМ.
+        // Позже этот блок можно будет отключить, поставив allowTemporaryMouseInput = false.
+        if (allowTemporaryMouseInput)
         {
-            Debug.LogWarning("PlayerAttack: не назначен Current Attack Data!");
-            return;
+            HandleTemporaryMouseInput();
         }
+    }
 
-        // Проверяем, назначена ли точка удара.
-        if (attackPoint == null)
+    private void HandleTemporaryMouseInput()
+    {
+        // Если мыши нет — просто выходим
+        if (Mouse.current == null)
+            return;
+
+        // Если ЛКМ нажали в этот кадр — пробуем ударить
+        if (Mouse.current.leftButton.wasPressedThisFrame)
         {
-            Debug.LogWarning("PlayerAttack: не назначен AttackPoint!");
-            return;
+            TryAttack();
         }
+    }
 
-        // Проверка кулдауна:
-        // если текущее время ещё меньше времени следующей атаки - выходим.
+    // Этот метод — главный для атаки.
+    // Именно его потом должен вызывать отдельный InputHandler.
+    public void TryAttack()
+    {
+        // Если кулдаун ещё не закончился — удар пока нельзя
         if (Time.time < nextAttackTime)
             return;
 
-        // Берём БАЗОВЫЕ параметры атаки из ScriptableObject.
-        int finalDamage = currentAttackData.baseDamage;
-        float finalRadius = currentAttackData.baseRadius;
-        float finalCooldown = currentAttackData.baseCooldown;
-
-        // Если на игроке есть PlayerCombatStats -
-        // считаем ИТОГОВЫЕ параметры уже с бонусами.
-        if (combatStats != null)
+        // Если точка удара не назначена — предупреждаем в консоли и выходим
+        if (attackPoint == null)
         {
-            finalDamage = combatStats.GetFinalDamage(currentAttackData.baseDamage);
-            finalRadius = combatStats.GetFinalRadius(currentAttackData.baseRadius);
-            finalCooldown = combatStats.GetFinalCooldown(currentAttackData.baseCooldown);
+            Debug.LogWarning("PlayerAttack: не назначен attackPoint!");
+            return;
         }
 
-        // Сразу ставим время следующей разрешённой атаки.
-        nextAttackTime = Time.time + finalCooldown;
+        // Выполняем сам удар
+        DoAttack();
 
-        // Проигрываем звук атаки игрока.
-        playerSfx?.PlayAttack();
-
-        // Делаем сам удар.
-        DoAttack(finalDamage, finalRadius);
+        // Ставим время следующего удара
+        nextAttackTime = Time.time + attackCooldown;
     }
 
-    // Метод, который реально ищет цели и наносит урон.
-    private void DoAttack(int finalDamage, float finalRadius)
+    private void DoAttack()
     {
-        // На всякий случай очищаем набор уникальных врагов перед новым ударом.
-        uniqueEnemies.Clear();
+        // Ищем всех врагов в радиусе удара
+        Collider[] hits = Physics.OverlapSphere(attackPoint.position, attackRange, enemyMask);
 
-        // Ищем все коллайдеры в радиусе удара.
-        //
-        // Мы используем OverlapSphereNonAlloc:
-        // - результат пишется в уже готовый массив hitBuffer
-        // - меньше мусора в памяти
-        //
-        // currentAttackData.targetMask определяет, по каким слоям мы вообще ищем цели.
-        int hitCount = Physics.OverlapSphereNonAlloc(
-            attackPoint.position,
-            finalRadius,
-            hitBuffer,
-            currentAttackData.targetMask,
-            QueryTriggerInteraction.Ignore
-        );
+        // Если никого не нашли — просто выходим
+        if (hits == null || hits.Length == 0)
+            return;
 
-        // Перебираем все найденные коллайдеры.
-        for (int i = 0; i < hitCount; i++)
+        // Для кулачного боя нам не нужен удар по всем сразу.
+        // Выбираем ТОЛЬКО ОДНУ ближайшую цель.
+        EnemyHealth closestEnemy = null;
+        float closestDistanceSqr = float.MaxValue;
+
+        foreach (Collider hit in hits)
         {
-            Collider hit = hitBuffer[i];
-
-            // Защита на случай пустого элемента.
-            if (hit == null)
-                continue;
-
-            // Пока для MVP ищем EnemyHealth.
-            // ВАЖНО:
-            // Позже мы сможем расширить это до общей системы повреждаемых объектов
-            // (например враг, ящик, руда, опора, стена и т.д.).
+            // Ищем EnemyHealth у объекта врага или у его родителя
             EnemyHealth enemyHealth = hit.GetComponentInParent<EnemyHealth>();
 
             if (enemyHealth == null)
                 continue;
 
-            // Если этот враг уже был добавлен в набор -
-            // значит мы уже наносили ему урон в ЭТОМ ударе.
-            // Такое бывает, если у врага несколько коллайдеров.
-            if (!uniqueEnemies.Add(enemyHealth))
+            // Если враг уже мёртв — пропускаем
+            if (enemyHealth.IsDead)
                 continue;
 
-            // Наносим урон врагу.
-            enemyHealth.TakeDamage(finalDamage);
+            // Считаем расстояние от точки удара до врага
+            float distanceSqr = (enemyHealth.transform.position - attackPoint.position).sqrMagnitude;
+
+            // Если этот враг ближе, чем предыдущий найденный — запоминаем его
+            if (distanceSqr < closestDistanceSqr)
+            {
+                closestDistanceSqr = distanceSqr;
+                closestEnemy = enemyHealth;
+            }
+        }
+
+        // Если нашли ближайшего врага — наносим ему урон
+        if (closestEnemy != null)
+        {
+            closestEnemy.TakeDamage(baseDamage);
         }
     }
 
-    // Рисуем радиус удара в Scene View, когда объект выделен.
-    // Это очень удобно для настройки.
+    // Эти методы нужны, чтобы потом другие скрипты могли:
+    // 1. читать текущие параметры
+    // 2. временно усиливать/ослаблять атаку
+    // Это пригодится для способностей, статов и оружия.
+    public int GetBaseDamage()
+    {
+        return baseDamage;
+    }
+
+    public float GetAttackRange()
+    {
+        return attackRange;
+    }
+
+    public float GetAttackCooldown()
+    {
+        return attackCooldown;
+    }
+
+    public void SetAttackCooldown(float newCooldown)
+    {
+        attackCooldown = newCooldown;
+    }
+
+    // Рисуем радиус удара в Scene, когда объект выделен
     private void OnDrawGizmosSelected()
     {
         if (attackPoint == null)
             return;
 
-        // Радиус для предпросмотра.
-        // Если данные атаки назначены - показываем их базовый радиус.
-        // Если нет - рисуем запасной радиус 1.
-        float previewRadius = 1f;
-
-        if (currentAttackData != null)
-            previewRadius = currentAttackData.baseRadius;
-
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(attackPoint.position, previewRadius);
+        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }
 }
