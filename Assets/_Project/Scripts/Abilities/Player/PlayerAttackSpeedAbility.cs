@@ -14,7 +14,7 @@ using UnityEngine.InputSystem;
 // - Сейчас для удобства есть ВРЕМЕННЫЙ ввод с клавиатуры (Q)
 // - Позже ввод вынесем в отдельный InputHandler
 // - Тогда InputHandler будет вызывать метод TryActivateAttackSpeedAbility()
-public class PlayerAbilityController : MonoBehaviour
+public class PlayerAttackSpeedAbility : MonoBehaviour
 {
     [Header("Ссылка на атаку игрока")]
     [SerializeField] private PlayerAttack playerAttack;
