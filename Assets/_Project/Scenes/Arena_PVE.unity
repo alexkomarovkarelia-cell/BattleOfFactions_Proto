@@ -155,6 +155,11 @@ Transform:
   - {fileID: 1580997790}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &45673377 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8733653577997185037, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+  m_PrefabInstance: {fileID: 2585125817136740922}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &55831665
 GameObject:
   m_ObjectHideFlags: 0
@@ -3798,12 +3803,42 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3187304000828960267, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
   m_PrefabInstance: {fileID: 2585125817136740922}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 45673377}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c6252936d60743c4186001c09c8ea7e0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombatStats
+--- !u!114 &1046350984 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2440191616310563087, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+  m_PrefabInstance: {fileID: 2585125817136740922}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 45673377}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd2ab7bf732f944989f5094d0de7982, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAttack
+--- !u!114 &1046350991
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 45673377}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05eb4c4b89c310a4dbcfb831894842ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAbilityController
+  playerAttack: {fileID: 1046350984}
+  allowTemporaryKeyboardInput: 1
+  abilityKey: 31
+  abilityDuration: 5
+  abilityCooldown: 14
+  attackCooldownMultiplier: 0.55
+  showDebugUI: 1
 --- !u!1 &1064586767
 GameObject:
   m_ObjectHideFlags: 0
@@ -6843,6 +6878,14 @@ PrefabInstance:
       propertyPath: hud
       value: 
       objectReference: {fileID: 858902572}
+    - target: {fileID: 6165148724871904105, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6165148724871904105, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6471075037628034207, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
       propertyPath: hud
       value: 
@@ -6854,7 +6897,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8733653577997185037, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1046350991}
   m_SourcePrefab: {fileID: 100100000, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
 --- !u!1001 &2821968553192332296
 PrefabInstance:
