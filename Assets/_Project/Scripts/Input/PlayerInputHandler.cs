@@ -1,56 +1,74 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Этот скрипт - центральная точка ввода действий игрока.
+// PlayerInputHandler
+// Центральный скрипт ввода действий игрока.
 //
-
-// Позже сюда добавим:
-// - Ability1
-// - Interact
+// На этом этапе он отвечает за:
+// 1. Attack
+// 2. Ability1
+// 3. Interact
 //
-// Главная идея:
-// сам этот скрипт читает input,
-// а другие игровые скрипты только выполняют действия.
+// Важно:
+// - этот скрипт только читает input
+// - он НЕ делает урон
+// - он НЕ меняет кулдауны
+// - он НЕ ищет объекты сам
+//
+// Он только вызывает нужные методы у других систем игрока.
 public class PlayerInputHandler : MonoBehaviour
 {
     [Header("Ссылки на системы игрока")]
     [SerializeField] private PlayerAttack playerAttack;
+    [SerializeField] private PlayerAttackSpeedAbility attackSpeedAbility;
+    [SerializeField] private PlayerInteraction playerInteraction;
 
-    // Сгенерированный Unity класс из PlayerInputActions.inputactions
     private PlayerInputActions inputActions;
 
     private void Awake()
     {
-        // Создаём экземпляр input actions
         inputActions = new PlayerInputActions();
 
-        // Если забыли назначить ссылку вручную,
-        // пробуем найти PlayerAttack на этом же объекте
         if (playerAttack == null)
             playerAttack = GetComponent<PlayerAttack>();
+
+        if (attackSpeedAbility == null)
+            attackSpeedAbility = GetComponent<PlayerAttackSpeedAbility>();
+
+        if (playerInteraction == null)
+            playerInteraction = GetComponent<PlayerInteraction>();
     }
 
     private void OnEnable()
     {
-        // Включаем карту действий Player
         inputActions.Player.Enable();
 
-        // Подписываемся на событие нажатия Attack
         inputActions.Player.Attack.performed += OnAttackPerformed;
+        inputActions.Player.Ability1.performed += OnAbility1Performed;
+        inputActions.Player.Interact.performed += OnInteractPerformed;
     }
 
     private void OnDisable()
     {
-        // Отписываемся, чтобы не было дублей подписок
         inputActions.Player.Attack.performed -= OnAttackPerformed;
+        inputActions.Player.Ability1.performed -= OnAbility1Performed;
+        inputActions.Player.Interact.performed -= OnInteractPerformed;
 
-        // Выключаем карту действий
         inputActions.Player.Disable();
     }
 
     private void OnAttackPerformed(InputAction.CallbackContext context)
     {
-        // Просим систему атаки попробовать атаковать
         playerAttack?.TryAttack();
+    }
+
+    private void OnAbility1Performed(InputAction.CallbackContext context)
+    {
+        attackSpeedAbility?.TryActivate();
+    }
+
+    private void OnInteractPerformed(InputAction.CallbackContext context)
+    {
+        playerInteraction?.TryInteract();
     }
 }
