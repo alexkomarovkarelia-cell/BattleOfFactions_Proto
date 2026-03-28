@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.InputSystem;
 
 // PlayerAttack
 // Этот скрипт отвечает ТОЛЬКО за логику базовой ближней атаки игрока.
@@ -10,70 +9,35 @@ using UnityEngine.InputSystem;
 // 3. Выбирает ОДНУ ближайшую цель
 // 4. Наносит ей урон
 //
-// Важно:
-// - Сейчас для удобства оставлен ВРЕМЕННЫЙ ввод через ЛКМ
-// - Позже ввод вынесем в отдельный InputHandler
-// - Тогда InputHandler будет вызывать метод TryAttack()
+// ВАЖНО:
+// - Этот скрипт больше НЕ читает мышь и клавиатуру
+// - Вызов атаки идёт только через PlayerInputHandler -> TryAttack()
 public class PlayerAttack : MonoBehaviour
 {
-    [Header("ВРЕМЕННЫЙ ввод (потом уберём в отдельный InputHandler)")]
-    [SerializeField] private bool allowTemporaryMouseInput = true;
-    // Пока true -> игрок может атаковать ЛКМ.
-    // Позже, когда сделаем отдельный скрипт ввода, поставим false,
-    // и атака будет вызываться не отсюда, а из InputHandler.
-
     [Header("Точка удара")]
     [SerializeField] private Transform attackPoint;
     // Это пустой объект перед игроком.
     // Из этой точки мы ищем врагов в радиусе.
-    // Его нужно создать вручную как дочерний объект игрока.
 
     [Header("Слой врагов")]
     [SerializeField] private LayerMask enemyMask;
     // Здесь выбираем слой Enemy.
-    // Скрипт будет искать только объекты на этом слое.
 
     [Header("Базовые параметры кулачного боя")]
     [SerializeField] private int baseDamage = 15;
     // Базовый урон кулаком
 
     [SerializeField] private float attackRange = 1.45f;
-    // Радиус удара.
-    // Если будет тяжело попадать — увеличим чуть позже.
+    // Радиус удара
 
     [SerializeField] private float attackCooldown = 0.30f;
-    // Задержка между ударами.
-    // Чем меньше число — тем быстрее игрок бьёт.
+    // Задержка между ударами
 
     // Время, когда игрок сможет ударить снова
     private float nextAttackTime = 0f;
 
-    private void Update()
-    {
-        // ВРЕМЕННО:
-        // Пока у нас нет отдельного InputHandler, разрешаем атаку через ЛКМ.
-        // Позже этот блок можно будет отключить, поставив allowTemporaryMouseInput = false.
-        if (allowTemporaryMouseInput)
-        {
-            HandleTemporaryMouseInput();
-        }
-    }
-
-    private void HandleTemporaryMouseInput()
-    {
-        // Если мыши нет — просто выходим
-        if (Mouse.current == null)
-            return;
-
-        // Если ЛКМ нажали в этот кадр — пробуем ударить
-        if (Mouse.current.leftButton.wasPressedThisFrame)
-        {
-            TryAttack();
-        }
-    }
-
-    // Этот метод — главный для атаки.
-    // Именно его потом должен вызывать отдельный InputHandler.
+    // Главный метод атаки.
+    // Его вызывает только PlayerInputHandler.
     public void TryAttack()
     {
         // Если кулдаун ещё не закончился — удар пока нельзя

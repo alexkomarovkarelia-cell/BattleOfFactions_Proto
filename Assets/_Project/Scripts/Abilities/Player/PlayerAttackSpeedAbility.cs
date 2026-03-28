@@ -1,66 +1,55 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 // PlayerAttackSpeedAbility
 // Этот скрипт отвечает ТОЛЬКО за первую активную способность игрока.
 //
-// Что делает способность:
-// - временно ускоряет базовую атаку
+// Способность:
+// - временно ускоряет атаку
 // - на время уменьшает кулдаун ударов
 // - потом возвращает обычное значение
-// - имеет свой собственный кулдаун
+// - имеет собственный кулдаун
 //
 // ВАЖНО:
-// Сейчас мы НЕ меняем механику способности.
-// Мы только приводим названия методов к удобному виду
-// и готовим скрипт к работе через PlayerInputHandler.
+// - Этот скрипт больше НЕ читает клавиатуру сам
+// - Вызов способности идёт только через PlayerInputHandler -> TryActivate()
+// - Позже этот же метод сможет вызывать UI-кнопка
 public class PlayerAttackSpeedAbility : MonoBehaviour
 {
     [Header("Ссылка на атаку игрока")]
     [SerializeField] private PlayerAttack playerAttack;
-    // Сюда нужно назначить компонент PlayerAttack с игрока.
-    // Через него способность временно меняет кулдаун ударов.
-
-    [Header("ВРЕМЕННЫЙ ввод (потом выключим совсем)")]
-    [SerializeField] private bool allowTemporaryKeyboardInput = true;
-    [SerializeField] private Key abilityKey = Key.Q;
-    // Пока этот временный ввод оставляем в коде,
-    // но после подключения через PlayerInputHandler
-    // просто выключим его в Inspector.
+    // Сюда нужно перетащить компонент PlayerAttack с игрока.
+    // Через него мы будем менять скорость ударов.
 
     [Header("Настройки способности")]
     [SerializeField] private float abilityDuration = 5f;
     // Сколько секунд действует ускорение атаки
 
     [SerializeField] private float abilityCooldown = 14f;
-    // Через сколько секунд способность снова станет доступна
+    // Кулдаун способности после активации
 
     [SerializeField] private float attackCooldownMultiplier = 0.55f;
-    // Во сколько раз уменьшается кулдаун обычной атаки.
-    // Пример:
-    // 0.30 * 0.55 = 0.165
-    // Значит игрок будет бить быстрее, пока активна способность.
+    // Во сколько раз уменьшается кулдаун атаки
 
     [Header("Временный экранный фидбек")]
     [SerializeField] private bool showDebugUI = true;
-    // Пока оставляем OnGUI для простой проверки.
-    // Потом это можно будет заменить на нормальный UI.
+    // Временно выводим состояние способности через OnGUI
 
-    // Обычное значение кулдауна атаки до бафа
+    // Сохраняем исходный кулдаун атаки,
+    // чтобы после окончания способности вернуть его назад
     private float savedAttackCooldown;
 
-    // До какого времени способность активна
+    // До какого времени действует способность
     private float abilityEndTime = 0f;
 
-    // До какого времени способность на перезарядке
+    // До какого времени способность на кулдауне
     private float nextAbilityReadyTime = 0f;
 
-    // Активна ли способность прямо сейчас
+    // Флаг, активна ли способность сейчас
     private bool isAbilityActive = false;
 
     private void Awake()
     {
-        // Если ссылку не назначили вручную,
+        // Если ссылку забыли назначить в Inspector,
         // пробуем найти PlayerAttack на этом же объекте
         if (playerAttack == null)
             playerAttack = GetComponent<PlayerAttack>();
@@ -68,58 +57,37 @@ public class PlayerAttackSpeedAbility : MonoBehaviour
 
     private void Update()
     {
-        // ВРЕМЕННЫЙ ввод.
-        // После подключения через PlayerInputHandler
-        // просто выключим allowTemporaryKeyboardInput в Inspector.
-        if (allowTemporaryKeyboardInput)
-        {
-            HandleTemporaryKeyboardInput();
-        }
-
-        // Если способность активна и её время закончилось —
-        // выключаем эффект
+        // Если способность активна и время закончилось — выключаем её
         if (isAbilityActive && Time.time >= abilityEndTime)
         {
             FinishAbility();
         }
     }
 
-    private void HandleTemporaryKeyboardInput()
-    {
-        if (Keyboard.current == null)
-            return;
-
-        if (Keyboard.current[abilityKey].wasPressedThisFrame)
-        {
-            TryActivate();
-        }
-    }
-
-    // Главный публичный метод активации способности.
-    // Его теперь будет вызывать PlayerInputHandler.
-    // Позже его сможет вызывать и UI-кнопка.
+    // Главный метод активации.
+    // Его вызывает PlayerInputHandler.
     public void TryActivate()
     {
+        // Если нет ссылки на PlayerAttack — выходим
         if (playerAttack == null)
         {
             Debug.LogWarning("PlayerAttackSpeedAbility: не назначен PlayerAttack!");
             return;
         }
 
-        // Если способность уже активна — повторно не включаем
+        // Если способность уже активна — второй раз не включаем
         if (isAbilityActive)
             return;
 
-        // Если способность ещё на кулдауне — тоже не включаем
+        // Если способность ещё на кулдауне — не активируем
         if (Time.time < nextAbilityReadyTime)
             return;
 
         StartAbility();
     }
 
-    // Явное досрочное отключение способности.
-    // Пока редко нужно, но это хорошая база на будущее:
-    // например для снятия бафа, смерти игрока, диспела и т.п.
+    // Принудительное отключение способности.
+    // Пока редко нужно, но это правильная база на будущее.
     public void Cancel()
     {
         if (!isAbilityActive)
@@ -128,8 +96,7 @@ public class PlayerAttackSpeedAbility : MonoBehaviour
         FinishAbility();
     }
 
-    // Удобный метод для внешней проверки:
-    // активна ли способность сейчас.
+    // Удобный метод для других систем и будущего UI
     public bool IsActive()
     {
         return isAbilityActive;
@@ -139,20 +106,20 @@ public class PlayerAttackSpeedAbility : MonoBehaviour
     {
         isAbilityActive = true;
 
-        // Сохраняем обычный кулдаун атаки,
-        // чтобы потом вернуть его назад
+        // Сохраняем текущий обычный кулдаун,
+        // чтобы потом вернуть его обратно
         savedAttackCooldown = playerAttack.GetAttackCooldown();
 
-        // Вычисляем ускоренный кулдаун
+        // Считаем ускоренный кулдаун
         float boostedCooldown = savedAttackCooldown * attackCooldownMultiplier;
 
-        // Временно назначаем ускоренное значение
+        // Назначаем его в PlayerAttack
         playerAttack.SetAttackCooldown(boostedCooldown);
 
-        // Запоминаем время окончания способности
+        // Запоминаем время окончания эффекта
         abilityEndTime = Time.time + abilityDuration;
 
-        // И сразу ставим кулдаун способности
+        // Сразу ставим время следующей готовности способности
         nextAbilityReadyTime = Time.time + abilityCooldown;
     }
 
@@ -164,12 +131,13 @@ public class PlayerAttackSpeedAbility : MonoBehaviour
         playerAttack.SetAttackCooldown(savedAttackCooldown);
     }
 
-    // Этот метод оставляем для будущей UI-кнопки.
+    // Этот метод пригодится потом для UI-кнопки
     public void ActivateAbilityFromUI()
     {
         TryActivate();
     }
 
+    // Временный экранный фидбек
     private void OnGUI()
     {
         if (!showDebugUI)
@@ -193,13 +161,12 @@ public class PlayerAttackSpeedAbility : MonoBehaviour
             if (cooldownRemain > 0f)
                 text = $"Способность: перезарядка {cooldownRemain:F1} c";
             else
-                text = $"Способность готова";
+                text = "Способность готова";
         }
 
         GUI.Label(new Rect(20, 50, 500, 30), text, style);
     }
 
-    // Полезно для будущего UI
     public float GetAbilityCooldownRemaining()
     {
         return Mathf.Max(nextAbilityReadyTime - Time.time, 0f);
