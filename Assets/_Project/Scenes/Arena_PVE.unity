@@ -3839,6 +3839,19 @@ MonoBehaviour:
   abilityCooldown: 14
   attackCooldownMultiplier: 0.55
   showDebugUI: 1
+--- !u!114 &1046350992
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 45673377}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e337dc119c3754881f746ddacb09b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInputHandler
+  playerAttack: {fileID: 1046350984}
 --- !u!1 &1064586767
 GameObject:
   m_ObjectHideFlags: 0
@@ -6874,6 +6887,10 @@ PrefabInstance:
       propertyPath: currentAttackData
       value: 
       objectReference: {fileID: 11400000, guid: b1872f47bc40c3449b8c3f49eba6d808, type: 2}
+    - target: {fileID: 2440191616310563087, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+      propertyPath: allowTemporaryMouseInput
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4975350494623051148, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
       propertyPath: hud
       value: 
@@ -6901,6 +6918,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8733653577997185037, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1046350991}
+    - targetCorrespondingSourceObject: {fileID: 8733653577997185037, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1046350992}
   m_SourcePrefab: {fileID: 100100000, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
 --- !u!1001 &2821968553192332296
 PrefabInstance:
