@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// PlayerAbilityController
+// PlayerAttackSpeedAbility
 // Этот скрипт отвечает ТОЛЬКО за первую способность игрока.
 //
 // Способность:
