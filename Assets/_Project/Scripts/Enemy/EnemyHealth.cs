@@ -33,6 +33,15 @@ public class EnemyHealth : MonoBehaviour
     // Чтобы другие скрипты могли узнать, жив враг или нет
     public bool IsDead => isDead;
 
+
+    // Текущее здоровье врага (только чтение)
+    // Нужно для UI цели, логики таргета и будущего показа HP
+    public int CurrentHealth => currentHealth;
+
+    // Максимальное здоровье врага (только чтение)
+    // Нужно для UI цели, логики таргета и будущего показа HP
+    public int MaxHealth => maxHealth;
+
     private CharacterSFX3D sfx3D;
     // Базовое значение HP, чтобы мы могли честно умножать от "оригинала"
     private int baseMaxHealth;

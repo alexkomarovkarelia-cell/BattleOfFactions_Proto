@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 639905149565756237}
   - component: {fileID: -7912639141708673738}
   - component: {fileID: -2109762169734932200}
+  - component: {fileID: 5939333665472544303}
   m_Layer: 7
   m_Name: Enemy
   m_TagString: Enemy
@@ -461,6 +462,21 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 4711fa1d3385e9c48a58b2b904dd553e, type: 3}
   pitchRange: {x: 0.95, y: 1.05}
   volume: 1
+--- !u!114 &5939333665472544303
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5968343151138241972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a553ec7a93470e49912c941d124f509, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetInfoProvider
+  displayName: 
+  useGameObjectNameIfEmpty: 1
+  hasHealthData: 0
 --- !u!1 &6322786672993905125
 GameObject:
   m_ObjectHideFlags: 0
