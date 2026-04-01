@@ -4152,6 +4152,7 @@ MonoBehaviour:
   playerAttack: {fileID: 1046350984}
   attackSpeedAbility: {fileID: 1046350991}
   playerInteraction: {fileID: 1046351002}
+  playerSoftLockAttack: {fileID: 0}
 --- !u!114 &1046351002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4204,9 +4205,44 @@ MonoBehaviour:
   allowHoveredTargetDisplay: 1
   allowSelectedTargetDisplay: 1
   showNameOnHover: 1
+  showExtendedInfoInManualFocus: 1
   showExtendedInfoInSoftLock: 1
   showExtendedInfoInHardLock: 1
   revealDelay: 0.5
+  manualFocusHoldDuration: 1.25
+  showDebugLogs: 0
+--- !u!114 &1046351017 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6471075037628034207, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+  m_PrefabInstance: {fileID: 2585125817136740922}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 45673377}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04a8a6524eb9e5f4a8d2d66ee6aac4bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+--- !u!114 &1046351023
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 45673377}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d8b6b2ce741a2f49b6882c98a6806e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSoftLockAttack
+  playerTargeting: {fileID: 1046351003}
+  playerAttack: {fileID: 1046350984}
+  targetDisplayResolver: {fileID: 1046351013}
+  playerHealth: {fileID: 1046351017}
+  enableTargetPursuit: 1
+  breakDistance: 100
+  rotateSpeed: 720
+  pursuitMoveSpeed: 5
+  pursuitStopDistance: 1.15
   showDebugLogs: 0
 --- !u!1 &1064586767
 GameObject:
@@ -7341,6 +7377,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8733653577997185037, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1046351013}
+    - targetCorrespondingSourceObject: {fileID: 8733653577997185037, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1046351023}
   m_SourcePrefab: {fileID: 100100000, guid: e31bc5dd884846e45b7294665309eb06, type: 3}
 --- !u!1001 &2821968553192332296
 PrefabInstance:

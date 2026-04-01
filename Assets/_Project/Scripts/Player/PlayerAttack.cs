@@ -3,18 +3,19 @@
 // PlayerAttack
 // Этот скрипт отвечает за базовую ближнюю атаку игрока.
 //
-// Что он делает теперь:
+// Что он умеет на текущем этапе:
 // 1. Если под курсором есть валидный враг — пытается ударить ИМЕННО ЕГО
 // 2. Перед ударом доворачивается к этой цели
 // 3. Сообщает системе показа, что начался manual focus
 // 4. Если под курсором цели нет — делает старый обычный удар вперёд
+// 5. Даёт отдельный публичный метод для soft lock,
+//    чтобы тот мог атаковать конкретную цель
 //
 // ВАЖНО:
-// - мы не делаем автоподход
-// - мы не ищем новую цель сами
-// - мы не включаем soft lock здесь
-// - это именно обычная ручная ЛКМ-атака,
-//   но уже более удобная и понятная
+// - здесь нет soft lock логики
+// - здесь нет выбора режима
+// - здесь нет автоподхода
+// - это только базовая атака
 public class PlayerAttack : MonoBehaviour
 {
     [Header("Точка удара")]
@@ -38,19 +39,18 @@ public class PlayerAttack : MonoBehaviour
 
     [SerializeField] private TargetDisplayResolver targetDisplayResolver;
     // Сюда нужен TargetDisplayResolver с игрока.
-    // Через него сообщаем, что ручная атака по цели началась.
+    // Через него сообщаем, что начался manual focus.
 
     [Header("Поворот к цели")]
     [SerializeField] private bool rotateToHoveredTarget = true;
-    // Если true — при ударе по цели под курсором
+    // Если true — при ручной атаке по цели под курсором
     // игрок сначала доворачивается к ней.
 
-    // Время следующего разрешённого удара
-    private float nextAttackTime = 0f;
+    [SerializeField] private bool rotateToSpecificTarget = true;
+    // Если true — при soft lock атаке по конкретной цели
+    // игрок тоже доворачивается к ней.
 
-    // Rigidbody игрока.
-    // Используем, чтобы аккуратно менять поворот,
-    // если он есть на объекте.
+    private float nextAttackTime = 0f;
     private Rigidbody rb;
 
     private void Awake()
@@ -64,95 +64,162 @@ public class PlayerAttack : MonoBehaviour
         rb = GetComponent<Rigidbody>();
     }
 
-    // Главный метод атаки.
-    // Его вызывает PlayerInputHandler.
+    // Главный метод обычной ручной атаки.
+    // Его вызывает PlayerInputHandler по ЛКМ.
     public void TryAttack()
     {
-        // Если кулдаун ещё не закончился — удар пока нельзя
         if (Time.time < nextAttackTime)
             return;
 
-        // Если точка удара не назначена — предупреждаем и выходим
         if (attackPoint == null)
         {
             Debug.LogWarning("PlayerAttack: не назначен attackPoint!");
             return;
         }
 
+        bool attackUsed = false;
+
         // Если под курсором есть валидная цель —
-        // пытаемся ударить именно её
+        // пробуем ударить именно её
         if (playerTargeting != null && playerTargeting.HasHoveredTarget())
         {
             EnemyHealth hoveredTarget = playerTargeting.HoveredTarget;
-            TryAttackHoveredTarget(hoveredTarget);
+            attackUsed = TryAttackHoveredTarget(hoveredTarget);
         }
         else
         {
             // Если цели под курсором нет —
-            // работает старый обычный удар вперёд
-            DoDefaultAttack();
+            // используем старый вариант удара вперёд
+            attackUsed = DoDefaultAttack();
         }
 
-        // Ставим время следующего удара
-        nextAttackTime = Time.time + attackCooldown;
+        if (attackUsed)
+            nextAttackTime = Time.time + attackCooldown;
+    }
+
+    // Публичный метод для атаки по КОНКРЕТНОЙ цели.
+    // Его будет использовать мягкий режим.
+    //
+    // reportManualFocus:
+    // true  = если хотим сообщить resolver'у о ручном фокусе
+    // false = если это soft lock и manual focus здесь не нужен
+    public void TryAttackSpecificTarget(EnemyHealth target, bool reportManualFocus)
+    {
+        if (Time.time < nextAttackTime)
+            return;
+
+        if (attackPoint == null)
+        {
+            Debug.LogWarning("PlayerAttack: не назначен attackPoint!");
+            return;
+        }
+
+        bool attackUsed = TryAttackSpecificTargetInternal(
+            target,
+            rotateToSpecificTarget,
+            reportManualFocus);
+
+        if (attackUsed)
+            nextAttackTime = Time.time + attackCooldown;
+    }
+
+    // Удобный метод для других систем:
+    // находится ли конкретная цель внутри текущего радиуса удара.
+    public bool IsTargetInsideAttackRange(EnemyHealth target)
+    {
+        if (target == null)
+            return false;
+
+        Collider[] hits = Physics.OverlapSphere(attackPoint.position, attackRange, enemyMask);
+
+        if (hits == null || hits.Length == 0)
+            return false;
+
+        foreach (Collider hit in hits)
+        {
+            EnemyHealth enemyHealth = hit.GetComponentInParent<EnemyHealth>();
+
+            if (enemyHealth == null)
+                continue;
+
+            if (enemyHealth.IsDead)
+                continue;
+
+            if (enemyHealth == target)
+                return true;
+        }
+
+        return false;
     }
 
     // =========================================================
-    // УДАР ПО ЦЕЛИ ПОД КУРСОРОМ
+    // РУЧНАЯ АТАКА ПО ЦЕЛИ ПОД КУРСОРОМ
     // =========================================================
 
-    private void TryAttackHoveredTarget(EnemyHealth target)
+    private bool TryAttackHoveredTarget(EnemyHealth target)
+    {
+        return TryAttackSpecificTargetInternal(
+            target,
+            rotateToHoveredTarget,
+            true);
+    }
+
+    // =========================================================
+    // ОБЩАЯ ЛОГИКА АТАКИ ПО КОНКРЕТНОЙ ЦЕЛИ
+    // =========================================================
+
+    private bool TryAttackSpecificTargetInternal(
+        EnemyHealth target,
+        bool shouldRotateToTarget,
+        bool reportManualFocus)
     {
         if (target == null)
-        {
-            DoDefaultAttack();
-            return;
-        }
+            return false;
 
         if (target.IsDead)
-            return;
+            return false;
 
-        // Сообщаем resolver'у:
-        // игрок вручную действует по этой цели.
-        //
-        // Это важно даже без soft/hard режима.
-        // Позже через это сможет открываться
-        // расширенная информация о цели.
-        targetDisplayResolver?.ReportManualFocus(target);
+        // Если это ручная атака —
+        // сообщаем resolver'у, что начался manual focus
+        if (reportManualFocus)
+        {
+            targetDisplayResolver?.ReportManualFocus(target);
+        }
 
-        // Доворачиваемся к цели, если включено
-        if (rotateToHoveredTarget)
+        // При необходимости доворачиваемся к цели
+        if (shouldRotateToTarget)
         {
             RotateInstantlyToTarget(target.transform.position);
         }
 
-        // ВАЖНО:
-        // если цель под курсором есть, но она не в досягаемости,
-        // мы НЕ переключаемся на удар "по ближайшему кому попало".
-        //
-        // Логика такая:
-        // - навёлся на конкретного врага
-        // - значит пытался ударить именно его
-        // - если он вне радиуса, удар не наносится
-        if (IsSpecificTargetInsideAttackRange(target))
+        // Если конкретная цель реально в радиусе удара —
+        // наносим урон именно ей
+        if (IsTargetInsideAttackRange(target))
         {
             target.TakeDamage(baseDamage);
+            return true;
         }
+
+        // Если цель есть, но не достаётся —
+        // считаем, что удар не использован
+        //
+        // Это важно для soft lock:
+        // он не должен тратить кулдаун вхолостую,
+        // пока цель не подошла в радиус.
+        return false;
     }
 
     // =========================================================
     // СТАРЫЙ ОБЫЧНЫЙ УДАР ВПЕРЁД
     // =========================================================
 
-    private void DoDefaultAttack()
+    private bool DoDefaultAttack()
     {
-        // Ищем всех врагов в радиусе удара
         Collider[] hits = Physics.OverlapSphere(attackPoint.position, attackRange, enemyMask);
 
         if (hits == null || hits.Length == 0)
-            return;
+            return false;
 
-        // Берём только одну ближайшую цель
         EnemyHealth closestEnemy = null;
         float closestDistanceSqr = float.MaxValue;
 
@@ -178,65 +245,32 @@ public class PlayerAttack : MonoBehaviour
         if (closestEnemy != null)
         {
             closestEnemy.TakeDamage(baseDamage);
-        }
-    }
-
-    // =========================================================
-    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-    // =========================================================
-
-    private bool IsSpecificTargetInsideAttackRange(EnemyHealth target)
-    {
-        if (target == null)
-            return false;
-
-        // Ищем всех врагов внутри текущей сферы удара
-        Collider[] hits = Physics.OverlapSphere(attackPoint.position, attackRange, enemyMask);
-
-        if (hits == null || hits.Length == 0)
-            return false;
-
-        foreach (Collider hit in hits)
-        {
-            EnemyHealth enemyHealth = hit.GetComponentInParent<EnemyHealth>();
-
-            if (enemyHealth == null)
-                continue;
-
-            if (enemyHealth.IsDead)
-                continue;
-
-            // Если внутри сферы находится ИМЕННО нужная цель —
-            // значит её можно ударить
-            if (enemyHealth == target)
-                return true;
+            return true;
         }
 
         return false;
     }
+
+    // =========================================================
+    // ПОВОРОТ К ЦЕЛИ
+    // =========================================================
 
     private void RotateInstantlyToTarget(Vector3 targetPosition)
     {
         Vector3 direction = targetPosition - transform.position;
         direction.y = 0f;
 
-        // Если цель слишком близко или направление почти нулевое —
-        // поворачивать не надо
         if (direction.sqrMagnitude <= 0.0001f)
             return;
 
         Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
 
-        // Если у игрока есть Rigidbody —
-        // задаём поворот через него
         if (rb != null)
         {
             rb.rotation = targetRotation;
         }
         else
         {
-            // Если Rigidbody нет —
-            // просто через transform
             transform.rotation = targetRotation;
         }
     }

@@ -66,6 +66,8 @@ public class PlayerMovement : MonoBehaviour
     // Помогает один раз правильно задать курс движения
     private bool moveYawInitialized = false;
 
+    private PlayerSoftLockAttack playerSoftLockAttack;
+
     // =========================================================
     // UNITY: ИНИЦИАЛИЗАЦИЯ
     // =========================================================
@@ -90,6 +92,7 @@ public class PlayerMovement : MonoBehaviour
 
         // Более надёжные столкновения
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        playerSoftLockAttack = GetComponent<PlayerSoftLockAttack>();
     }
 
     private void Start()
@@ -168,6 +171,11 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleMovement()
     {
+        // Если активен мягкий режим,
+        // обычный поворот от движения не используем.
+        // В этот момент поворотом управляет PlayerSoftLockAttack.
+        if (playerSoftLockAttack != null && playerSoftLockAttack.IsSoftLockActive)
+            return;
         // Если зажата ПКМ — включён свободный обзор.
         // В этот момент курс движения НЕ обновляем.
         bool freeLook = Mouse.current != null && Mouse.current.rightButton.isPressed;
@@ -234,6 +242,11 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleRotation()
     {
+        // Если активен целевой режим,
+        // обычный поворот от движения не используем.
+        // В этот момент поворотом управляет PlayerSoftLockAttack.
+        if (playerSoftLockAttack != null && playerSoftLockAttack.IsSoftLockActive)
+            return;
         // Если зажата ПКМ —
         // это режим свободного обзора, автоповорот отключаем
         bool freeLook = Mouse.current != null && Mouse.current.rightButton.isPressed;
