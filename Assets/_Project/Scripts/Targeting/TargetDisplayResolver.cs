@@ -1,15 +1,15 @@
 using UnityEngine;
 
 // TargetDisplayLevel
-// Это уровень информации, который мы сейчас готовы показать о цели.
+// Это уровень информации, который мы готовы показать о цели.
 //
 // None      = ничего не показываем
 // NameOnly  = только имя / название
 // Extended  = расширенная информация
 //
-// На Этапе 5 реально используем только:
+// На Этапе 5 реально используем:
 // - NameOnly
-// - и задел под Extended
+// - фундамент под Extended
 public enum TargetDisplayLevel
 {
     None = 0,
@@ -28,86 +28,75 @@ public enum TargetDisplayLevel
 // - он НЕ рисует UI
 // - он НЕ хранит "сырые" данные цели
 //
-// Разделение ролей такое:
+// Разделение ролей:
 // PlayerTargeting      -> кого навели / выбрали
 // TargetInfoProvider   -> какие данные у цели вообще есть
 // TargetDisplayResolver-> что из этих данных можно показать СЕЙЧАС
-// PlayerTargetUI       -> как это нарисовать на экране
+// PlayerTargetUI       -> как это нарисовать
 //
-// Почему это важно:
-// сюда потом очень удобно добавлять:
-// - скрытность
-// - невидимость
-// - маскировку
-// - наблюдательность
-// - мудрость
-// - особые правила для боссов
-// - разные уровни раскрытия информации
+// На этом этапе важно:
+// расширенная информация должна открываться НЕ ТОЛЬКО от soft/hard режима,
+// но и от обычного ручного действия ЛКМ по цели.
 //
-// На Этапе 5 делаем такой фундамент:
-// 1. Просто hover мышкой -> показываем только имя
-// 2. Если включён soft lock / hard lock
-//    и цель удерживается в боевом фокусе какое-то время,
-//    тогда можно разрешить расширенную информацию
-//
-// Сама расширенная информация пока ещё не рисуется,
-// но правило уже закладываем правильно.
+// Поэтому у нас будет несколько источников фокуса:
+// - Hover            -> просто навели курсор
+// - ManualFocus      -> обычный ЛКМ по цели
+// - SoftLockFocus    -> мягкий режим
+// - HardLockFocus    -> жёсткий режим
 [DisallowMultipleComponent]
 public class TargetDisplayResolver : MonoBehaviour
 {
     [Header("Ссылка на таргет игрока")]
     [SerializeField] private PlayerTargeting playerTargeting;
-    // Сюда нужен PlayerTargeting с объекта Player
 
     [Header("Приоритет целей")]
     [SerializeField] private bool preferSelectedTarget = true;
-    // Если true:
-    // выбранная цель важнее цели под курсором
-
     [SerializeField] private bool allowHoveredTargetDisplay = true;
-    // Можно ли показывать данные цели под курсором
-
     [SerializeField] private bool allowSelectedTargetDisplay = true;
-    // Можно ли показывать данные выбранной цели
 
-    [Header("Правила раскрытия информации")]
+    [Header("Правила показа")]
     [SerializeField] private bool showNameOnHover = true;
-    // При простом наведении мышкой показываем только имя
-
+    [SerializeField] private bool showExtendedInfoInManualFocus = true;
     [SerializeField] private bool showExtendedInfoInSoftLock = true;
-    // Если включён мягкий режим,
-    // можно ли потом раскрывать расширенную информацию
-
     [SerializeField] private bool showExtendedInfoInHardLock = true;
-    // Если включён жёсткий режим,
-    // можно ли потом раскрывать расширенную информацию
 
     [SerializeField] private float revealDelay = 0.5f;
-    // Через сколько секунд боевого фокуса
-    // можно показать расширенную информацию
+    // Через сколько секунд фокуса разрешаем расширенную информацию.
+    // То есть:
+    // - сразу при наведении только имя
+    // - если цель удерживается в фокусе, можно открыть больше
+
+    [SerializeField] private float manualFocusHoldDuration = 1.25f;
+    // Сколько секунд после обычного ручного действия
+    // сохраняется manual focus.
     //
-    // Идея:
-    // сразу при наведении не вываливаем всё подряд.
-    // Сначала только имя.
-    // А уже при удержании боевого фокуса
-    // через небольшую паузу можно показать больше.
+    // Это важно, потому что ЛКМ-удар — событие короткое.
+    // Нам нужно, чтобы фокус не пропадал мгновенно.
+    //
+    // Если игрок бьёт ту же цель ещё раз —
+    // мы просто продлеваем это окно.
 
     [Header("Отладка")]
     [SerializeField] private bool showDebugLogs = false;
 
-    // Состояния боевого фокуса.
-    // Пока на Этапе 5 они будут просто заложены.
-    // Позже PlayerSoftLockAttack / hard lock смогут их вызывать.
+    // ================================
+    // SOFT / HARD LOCK СОСТОЯНИЯ
+    // ================================
+
     private bool softLockActive = false;
     private bool hardLockActive = false;
 
-    // Цель, которая сейчас находится в боевом фокусе.
-    // Это не просто hover мышкой,
-    // а именно цель, на которой держится боевой режим.
-    private EnemyHealth focusTarget;
+    private EnemyHealth lockFocusTarget;
+    private float lockFocusStartTime = -999f;
 
-    // Время, когда этот боевой фокус начался.
-    private float focusStartTime = -999f;
+    // ================================
+    // MANUAL FOCUS СОСТОЯНИЯ
+    // ================================
+
+    private bool manualFocusActive = false;
+    private EnemyHealth manualFocusTarget;
+    private float manualFocusStartTime = -999f;
+    private float manualFocusExpireTime = -999f;
 
     private void Awake()
     {
@@ -120,50 +109,83 @@ public class TargetDisplayResolver : MonoBehaviour
 
     private void Update()
     {
-        // Если цель боевого фокуса стала невалидной —
-        // полностью сбрасываем фокус.
-        if ((softLockActive || hardLockActive) && !IsTargetStillValid(focusTarget))
-        {
-            if (showDebugLogs && focusTarget != null)
-                Debug.Log($"Combat focus lost: {focusTarget.name}");
-
-            ClearAllFocusState();
-        }
+        UpdateManualFocus();
+        UpdateLockFocus();
     }
 
     // =========================================================
-    // ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ БОЕВЫХ РЕЖИМОВ
+    // ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ MANUAL / SOFT / HARD FOCUS
     // =========================================================
 
-    // Этот метод позже будет вызывать мягкий режим.
+    // Этот метод вызываем, когда игрок вручную делает действие по цели.
+    // На Этапе 5 — это обычный ЛКМ-удар по врагу под курсором.
     //
-    // Пример будущей логики:
-    // targetDisplayResolver.SetSoftLockState(true, currentTarget);
+    // Позже этот же метод смогут использовать:
+    // - выстрел
+    // - баф на цель
+    // - дебаф на цель
+    // - другие направленные действия
+    public void ReportManualFocus(EnemyHealth target)
+    {
+        if (!IsTargetStillValid(target))
+            return;
+
+        // Если manual focus уже активен на этой же цели,
+        // НЕ сбрасываем старт revealDelay заново.
+        // Мы только продлеваем время удержания.
+        if (manualFocusActive && manualFocusTarget == target)
+        {
+            manualFocusExpireTime = Time.time + manualFocusHoldDuration;
+
+            if (showDebugLogs)
+                Debug.Log($"Manual focus extended: {target.name}");
+
+            return;
+        }
+
+        // Если цели раньше не было или цель сменилась —
+        // начинаем новый manual focus.
+        manualFocusActive = true;
+        manualFocusTarget = target;
+        manualFocusStartTime = Time.time;
+        manualFocusExpireTime = Time.time + manualFocusHoldDuration;
+
+        if (showDebugLogs)
+            Debug.Log($"Manual focus started: {target.name}");
+    }
+
+    public void ClearManualFocus()
+    {
+        if (showDebugLogs && manualFocusTarget != null)
+            Debug.Log($"Manual focus cleared: {manualFocusTarget.name}");
+
+        manualFocusActive = false;
+        manualFocusTarget = null;
+        manualFocusStartTime = -999f;
+        manualFocusExpireTime = -999f;
+    }
+
+    // Этот метод позже будет вызывать мягкий режим
     public void SetSoftLockState(bool isActive, EnemyHealth target = null)
     {
         softLockActive = isActive;
 
         if (isActive)
         {
-            // Если передали цель —
-            // начинаем/обновляем боевой фокус именно на ней
             if (target != null)
-                SetCombatFocusTarget(target);
+                SetLockFocusTarget(target);
         }
         else
         {
-            // Если мягкий режим выключили,
-            // и жёсткий тоже не активен —
-            // полностью убираем боевой фокус
             if (!hardLockActive)
-                ClearAllFocusState();
+                ClearLockFocus();
         }
 
         if (showDebugLogs)
             Debug.Log($"SoftLock active = {softLockActive}");
     }
 
-    // Этот метод позже будет вызывать жёсткий режим.
+    // Этот метод позже будет вызывать жёсткий режим
     public void SetHardLockState(bool isActive, EnemyHealth target = null)
     {
         hardLockActive = isActive;
@@ -171,60 +193,28 @@ public class TargetDisplayResolver : MonoBehaviour
         if (isActive)
         {
             if (target != null)
-                SetCombatFocusTarget(target);
+                SetLockFocusTarget(target);
         }
         else
         {
             if (!softLockActive)
-                ClearAllFocusState();
+                ClearLockFocus();
         }
 
         if (showDebugLogs)
             Debug.Log($"HardLock active = {hardLockActive}");
     }
 
-    // Установить/обновить цель боевого фокуса.
-    // Важно:
-    // если цель поменялась,
-    // таймер revealDelay должен начаться заново.
-    public void SetCombatFocusTarget(EnemyHealth target)
-    {
-        if (!IsTargetStillValid(target))
-            return;
-
-        // Если цель та же самая —
-        // не сбрасываем таймер повторно
-        if (focusTarget == target)
-            return;
-
-        focusTarget = target;
-        focusStartTime = Time.time;
-
-        if (showDebugLogs)
-            Debug.Log($"Combat focus target = {focusTarget.name}");
-    }
-
-    // Полностью очистить боевой фокус.
     public void ClearAllFocusState()
     {
-        softLockActive = false;
-        hardLockActive = false;
-        focusTarget = null;
-        focusStartTime = -999f;
-
-        if (showDebugLogs)
-            Debug.Log("All combat focus state cleared");
+        ClearManualFocus();
+        ClearLockFocus();
     }
 
     // =========================================================
     // ГЛАВНЫЙ МЕТОД ДЛЯ UI
     // =========================================================
 
-    // UI вызывает этот метод и получает уже готовое решение:
-    // - что можно показать
-    // - какое имя показать
-    // - можно ли показать HP
-    // - какие числа HP вернуть
     public bool TryGetDisplayData(
         out string displayName,
         out bool showHealth,
@@ -236,33 +226,24 @@ public class TargetDisplayResolver : MonoBehaviour
         currentHealth = 0;
         maxHealth = 0;
 
-        // Если нет таргета игрока —
-        // ничего не показываем
         if (playerTargeting == null)
             return false;
 
-        // Определяем, какая цель сейчас приоритетна для показа
         EnemyHealth targetToDisplay = GetTargetToDisplay();
 
         if (targetToDisplay == null)
             return false;
 
-        // Определяем уровень информации, который сейчас разрешён
         TargetDisplayLevel displayLevel = ResolveDisplayLevel(targetToDisplay);
 
         if (displayLevel == TargetDisplayLevel.None)
             return false;
 
-        // Берём провайдер данных с самой цели
         TargetInfoProvider infoProvider = targetToDisplay.GetComponentInParent<TargetInfoProvider>();
 
-        // Если провайдера нет —
-        // пробуем не ломаться и хотя бы показать имя объекта
         if (infoProvider == null)
         {
             displayName = CleanObjectName(targetToDisplay.gameObject.name);
-
-            // Без провайдера HP показать не сможем
             showHealth = false;
             currentHealth = 0;
             maxHealth = 0;
@@ -270,13 +251,8 @@ public class TargetDisplayResolver : MonoBehaviour
             return !string.IsNullOrWhiteSpace(displayName);
         }
 
-        // Имя можно показать уже сейчас
         displayName = infoProvider.GetDisplayName();
 
-        // Расширенная информация
-        // Пока на Этапе 5 это только задел.
-        // Но если позже UI начнёт рисовать HP,
-        // resolver уже будет готов дать эти данные.
         if (displayLevel == TargetDisplayLevel.Extended && infoProvider.HasHealthData)
         {
             showHealth = true;
@@ -294,17 +270,71 @@ public class TargetDisplayResolver : MonoBehaviour
     }
 
     // =========================================================
-    // ВНУТРЕННЯЯ ЛОГИКА RESOLVER
+    // ВНУТРЕННЯЯ ЛОГИКА
     // =========================================================
+
+    private void UpdateManualFocus()
+    {
+        if (!manualFocusActive)
+            return;
+
+        // Если цель manual focus умерла/пропала — очищаем
+        if (!IsTargetStillValid(manualFocusTarget))
+        {
+            ClearManualFocus();
+            return;
+        }
+
+        // Если время вышло — очищаем
+        if (Time.time > manualFocusExpireTime)
+        {
+            ClearManualFocus();
+        }
+    }
+
+    private void UpdateLockFocus()
+    {
+        if (!softLockActive && !hardLockActive)
+            return;
+
+        if (!IsTargetStillValid(lockFocusTarget))
+        {
+            ClearLockFocus();
+        }
+    }
+
+    private void SetLockFocusTarget(EnemyHealth target)
+    {
+        if (!IsTargetStillValid(target))
+            return;
+
+        // Если цель та же самая — не перезапускаем revealDelay
+        if (lockFocusTarget == target)
+            return;
+
+        lockFocusTarget = target;
+        lockFocusStartTime = Time.time;
+
+        if (showDebugLogs)
+            Debug.Log($"Lock focus target = {target.name}");
+    }
+
+    private void ClearLockFocus()
+    {
+        if (showDebugLogs && lockFocusTarget != null)
+            Debug.Log($"Lock focus cleared: {lockFocusTarget.name}");
+
+        softLockActive = false;
+        hardLockActive = false;
+        lockFocusTarget = null;
+        lockFocusStartTime = -999f;
+    }
 
     private EnemyHealth GetTargetToDisplay()
     {
         if (playerTargeting == null)
             return null;
 
-        // Вариант 1:
-        // если выбрана цель и ей можно отдавать приоритет —
-        // показываем её
         if (preferSelectedTarget &&
             allowSelectedTargetDisplay &&
             playerTargeting.HasSelectedTarget())
@@ -312,19 +342,12 @@ public class TargetDisplayResolver : MonoBehaviour
             return playerTargeting.SelectedTarget;
         }
 
-        // Вариант 2:
-        // если есть цель под курсором —
-        // показываем её
         if (allowHoveredTargetDisplay &&
             playerTargeting.HasHoveredTarget())
         {
             return playerTargeting.HoveredTarget;
         }
 
-        // Вариант 3:
-        // если selected не был приоритетным,
-        // но hovered нет,
-        // тогда можно показать selected
         if (!preferSelectedTarget &&
             allowSelectedTargetDisplay &&
             playerTargeting.HasSelectedTarget())
@@ -340,50 +363,50 @@ public class TargetDisplayResolver : MonoBehaviour
         if (!IsTargetStillValid(target))
             return TargetDisplayLevel.None;
 
-        // По умолчанию при простом наведении —
-        // только имя
+        // Базовый уровень:
+        // просто hover мышкой = только имя
         TargetDisplayLevel fallbackLevel = showNameOnHover
             ? TargetDisplayLevel.NameOnly
             : TargetDisplayLevel.None;
 
-        // Если нет боевого фокуса —
-        // остаёмся на fallback уровне
-        if (!IsCombatFocusOnTarget(target))
-            return fallbackLevel;
-
-        // Если боевой фокус есть,
-        // но нужная задержка ещё не прошла —
-        // тоже пока только fallback
-        if (!HasRevealDelayPassed())
-            return fallbackLevel;
-
-        // Если сейчас активен hard lock
-        // и для него разрешено расширенное отображение
-        if (hardLockActive && showExtendedInfoInHardLock)
+        // 1. Проверяем hard lock
+        if (hardLockActive &&
+            showExtendedInfoInHardLock &&
+            lockFocusTarget == target &&
+            HasLockRevealDelayPassed())
+        {
             return TargetDisplayLevel.Extended;
+        }
 
-        // Если сейчас активен soft lock
-        // и для него разрешено расширенное отображение
-        if (softLockActive && showExtendedInfoInSoftLock)
+        // 2. Проверяем soft lock
+        if (softLockActive &&
+            showExtendedInfoInSoftLock &&
+            lockFocusTarget == target &&
+            HasLockRevealDelayPassed())
+        {
             return TargetDisplayLevel.Extended;
+        }
+
+        // 3. Проверяем manual focus
+        if (manualFocusActive &&
+            showExtendedInfoInManualFocus &&
+            manualFocusTarget == target &&
+            HasManualRevealDelayPassed())
+        {
+            return TargetDisplayLevel.Extended;
+        }
 
         return fallbackLevel;
     }
 
-    private bool IsCombatFocusOnTarget(EnemyHealth target)
+    private bool HasLockRevealDelayPassed()
     {
-        if (target == null)
-            return false;
-
-        if (focusTarget == null)
-            return false;
-
-        return focusTarget == target;
+        return Time.time >= lockFocusStartTime + revealDelay;
     }
 
-    private bool HasRevealDelayPassed()
+    private bool HasManualRevealDelayPassed()
     {
-        return Time.time >= focusStartTime + revealDelay;
+        return Time.time >= manualFocusStartTime + revealDelay;
     }
 
     private bool IsTargetStillValid(EnemyHealth target)
