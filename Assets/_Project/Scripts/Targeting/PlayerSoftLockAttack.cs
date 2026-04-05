@@ -4,21 +4,27 @@ using UnityEngine;
 // Этот скрипт отвечает за текущий режим атаки по выбранной цели.
 //
 // ВАЖНО:
-// Сейчас мы НЕ делим режим на Soft / Hard.
+// Сейчас мы НЕ делим режим на Soft / Hard как отдельные системы.
 // Сейчас у нас один рабочий режим цели,
-// а его поведение меняется одной настройкой:
+// а его поведение меняется галкой Enable Target Pursuit.
 //
-// Enable Target Pursuit:
-// - false = персонаж не идёт сам к цели, только держит её
-// - true  = персонаж сам подходит к цели до радиуса удара/применения
+// false:
+// - персонаж сам не идёт к цели
+// - только держит её
+// - игрок двигается вручную
 //
-// Это удобно потому что:
-// - для мили часто нужно автоподойти
-// - для бафов / дебафов иногда тоже нужно дойти до радиуса
-// - а иногда игрок наоборот НЕ хочет автоподход
+// true:
+// - персонаж сам подходит к цели
+// - доходит до радиуса удара / применения
+// - ручное движение на время режима блокируется
 //
-// То есть сейчас делаем не отдельный Hard-режим,
-// а одну универсальную галочку поведения.
+// На этом этапе мы также закладываем правильные сбросы режима:
+// - ручная отмена
+// - смерть цели
+// - смерть игрока
+// - выход за breakDistance
+// - прыжок (через внешний вызов)
+// - будущий запрет атаки / hard control (через отдельный внешний вызов)
 [DisallowMultipleComponent]
 public class PlayerSoftLockAttack : MonoBehaviour
 {
@@ -30,12 +36,12 @@ public class PlayerSoftLockAttack : MonoBehaviour
 
     [Header("Основные настройки режима")]
     [SerializeField] private bool enableTargetPursuit = false;
-    // Главная галочка этого этапа.
+    // Главная галочка текущего этапа.
     //
     // false:
     // - персонаж сам НЕ идёт к цели
     // - только доворачивается
-    // - сам игрок двигается вручную
+    // - игрок двигается вручную
     //
     // true:
     // - персонаж сам идёт к цели
@@ -44,7 +50,7 @@ public class PlayerSoftLockAttack : MonoBehaviour
 
     [SerializeField] private float breakDistance = 10f;
     // Если цель ушла дальше этого расстояния —
-    // режим снимается.
+    // режим снимается полностью.
 
     [SerializeField] private float rotateSpeed = 720f;
     // Скорость поворота к цели.
@@ -58,7 +64,21 @@ public class PlayerSoftLockAttack : MonoBehaviour
     // если используем автоподход.
     //
     // Это НЕ радиус удара.
-    // Это просто безопасная дистанция остановки рядом с целью.
+    // Это просто комфортная дистанция остановки рядом с целью.
+
+    [Header("Будущие ограничения")]
+    [SerializeField] private bool attackForbidden = false;
+    // Временный задел на будущее.
+    //
+    // Сейчас это можно считать "ручным флагом запрета атаки".
+    // Позже сюда смогут писать:
+    // - hard control
+    // - disarm
+    // - pacify
+    // - silence для нужных режимов
+    // - другие эффекты, которые должны ломать режим
+    //
+    // Если этот флаг true — режим цели снимается.
 
     [Header("Отладка")]
     [SerializeField] private bool showDebugLogs = false;
@@ -101,28 +121,35 @@ public class PlayerSoftLockAttack : MonoBehaviour
         if (!isSoftLockActive)
             return;
 
-        // Если цель пропала — снимаем режим
+        // 1. Если цель пропала — снимаем режим
         if (!IsTargetValid(currentSoftLockTarget))
         {
             CancelSoftLock();
             return;
         }
 
-        // Если игрок мёртв — снимаем режим
+        // 2. Если игрок мёртв — снимаем режим
         if (playerHealth != null && playerHealth.CurrentHealth <= 0)
         {
             CancelSoftLock();
             return;
         }
 
-        // Если цель слишком далеко — снимаем режим
+        // 3. Если цель слишком далеко — снимаем режим
         if (IsTargetTooFar(currentSoftLockTarget))
         {
             CancelSoftLock();
             return;
         }
 
-        // Автоатака:
+        // 4. Если атака сейчас запрещена — снимаем режим
+        if (attackForbidden)
+        {
+            CancelSoftLock();
+            return;
+        }
+
+        // 5. Автоатака:
         // если цель в радиусе удара —
         // бьём её автоматически
         if (playerAttack != null && playerAttack.IsTargetInsideAttackRange(currentSoftLockTarget))
@@ -199,6 +226,35 @@ public class PlayerSoftLockAttack : MonoBehaviour
 
         StopPursuitMovement();
         currentSoftLockTarget = null;
+    }
+
+    // Этот метод специально добавляем как явную точку входа
+    // для других систем.
+    //
+    // Сейчас его будет вызывать прыжок:
+    // Space -> снять режим -> прыгнуть
+    //
+    // Позже сюда смогут обращаться:
+    // - hard control
+    // - запрет атаки
+    // - UI-переход в другой режим
+    // - торговля / контракты / взаимодействия
+    public void CancelSoftLockByExternalReason()
+    {
+        CancelSoftLock();
+    }
+
+    // Временный публичный метод на будущее.
+    // Позже какой-то другой скрипт сможет сказать:
+    // "теперь базовая атака запрещена" или "разрешена снова".
+    public void SetAttackForbidden(bool forbidden)
+    {
+        attackForbidden = forbidden;
+
+        if (attackForbidden && isSoftLockActive)
+        {
+            CancelSoftLock();
+        }
     }
 
     // =========================================================

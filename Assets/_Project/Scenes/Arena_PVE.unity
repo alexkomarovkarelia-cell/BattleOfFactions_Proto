@@ -4243,6 +4243,7 @@ MonoBehaviour:
   rotateSpeed: 720
   pursuitMoveSpeed: 5
   pursuitStopDistance: 1.15
+  attackForbidden: 0
   showDebugLogs: 0
 --- !u!1 &1064586767
 GameObject:

@@ -171,10 +171,10 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleMovement()
     {
-        // Если активен мягкий режим,
-        // обычный поворот от движения не используем.
-        // В этот момент поворотом управляет PlayerSoftLockAttack.
-        if (playerSoftLockAttack != null && playerSoftLockAttack.IsSoftLockActive)
+        // Если активен целевой режим и включено преследование,
+        // обычное ручное движение отключаем.
+        // В этот момент игрока двигает PlayerSoftLockAttack.
+        if (playerSoftLockAttack != null && playerSoftLockAttack.BlocksManualMovement)
             return;
         // Если зажата ПКМ — включён свободный обзор.
         // В этот момент курс движения НЕ обновляем.
@@ -303,6 +303,15 @@ public class PlayerMovement : MonoBehaviour
         // Прыгать можно только с земли
         if (!isGrounded)
             return;
+
+        // ВАЖНО:
+        // Прыжок должен сбрасывать целевой режим.
+        // Это даёт игроку быстрый и понятный способ
+        // сорваться с автоатаки / автоподхода.
+        if (playerSoftLockAttack != null && playerSoftLockAttack.IsSoftLockActive)
+        {
+            playerSoftLockAttack.CancelSoftLockByExternalReason();
+        }
 
         // Добавляем вертикальную скорость вверх
         rb.linearVelocity += Vector3.up * jumpForce;
