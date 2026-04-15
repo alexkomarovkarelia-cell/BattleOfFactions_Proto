@@ -2929,7 +2929,7 @@ MonoBehaviour:
   selectedArenaConfig: {fileID: 11400000, guid: 5924a9496cad8ac438d504b44af45b99, type: 2}
   selectedDifficultyProfile: {fileID: 11400000, guid: fa34a0bb1b06aef44bea0d88737bbd08, type: 2}
   selectedGameMode: {fileID: 11400000, guid: 5da44e8b50f32914e8baf15af75130e0, type: 2}
-  classicDirectorBehaviour: {fileID: 0}
+  classicDirectorBehaviour: {fileID: 1899693387}
   survivalDirectorBehaviour: {fileID: 0}
   constructorDirectorBehaviour: {fileID: 0}
   pvpDirectorBehaviour: {fileID: 0}
@@ -4116,6 +4116,58 @@ RectTransform:
   m_AnchoredPosition: {x: 5, y: -0.5}
   m_SizeDelta: {x: -30, y: -3}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &991108454
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 991108455}
+  - component: {fileID: 991108456}
+  m_Layer: 0
+  m_Name: WavePlanBuilder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &991108455
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991108454}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1273133675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &991108456
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991108454}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16fc3f03348d2f64ab31aff1c03dcbf4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WavePlanBuilder
+  useRandomSpawnPoints: 1
+  defaultSpawnInterval: 0.5
+  fallbackSpawnPointCount: 4
+  defaultBasicEnemyTypeId: melee_basic
+  defaultEliteEnemyTypeId: melee_elite
+  convertOneSpawnToElite: 1
+  avoidImmediateSameSpawnPoint: 1
+  showDebugLogs: 1
 --- !u!1 &1026033073
 GameObject:
   m_ObjectHideFlags: 0
@@ -4806,11 +4858,13 @@ Transform:
   m_GameObject: {fileID: 1273133674}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 485.43726, y: -0.00001, z: 273.9889}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 656969747}
+  - {fileID: 1899693386}
+  - {fileID: 991108455}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1278868931
@@ -6718,6 +6772,61 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -20, y: -20}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1899693385
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1899693386}
+  - component: {fileID: 1899693387}
+  m_Layer: 0
+  m_Name: ClassicArenaDirector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1899693386
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899693385}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1273133675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1899693387
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899693385}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a9694b32e18db44e8d8143d9ba06580, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClassicArenaDirector
+  directorModeId: classic
+  easyStartBudget: 8
+  normalStartBudget: 10
+  hardStartBudget: 12
+  easyBudgetGrowthPerWave: 2
+  normalBudgetGrowthPerWave: 3
+  hardBudgetGrowthPerWave: 4
+  wavesPerExtraSpawnZone: 5
+  minimumWaveForEarlyElite: 5
+  minimumWaveForEnvironmentIntervention: 7
+  showDebugLogs: 1
 --- !u!1 &1910103050
 GameObject:
   m_ObjectHideFlags: 0
