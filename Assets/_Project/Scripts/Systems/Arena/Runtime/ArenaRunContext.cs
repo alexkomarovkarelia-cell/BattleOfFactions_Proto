@@ -46,6 +46,8 @@ public class ArenaRunContext
 
     // Какой режим сейчас активен.
     public GameModeConfig CurrentGameMode { get; private set; }
+    //Какой профиль правил выбран
+    public ArenaModeRulesProfile CurrentModeRulesProfile { get; private set; }
 
     // =========================================================
     // БАЗОВАЯ СТАТИСТИКА ЗАБЕГА
@@ -73,13 +75,15 @@ public class ArenaRunContext
 
     // Запуск нового забега.
     public void StartNewRun(
-        ArenaConfig arenaConfig,
-        ArenaDifficultyProfile difficultyProfile,
-        GameModeConfig gameModeConfig)
+     ArenaConfig arenaConfig,
+     ArenaDifficultyProfile difficultyProfile,
+     GameModeConfig gameModeConfig,
+     ArenaModeRulesProfile modeRulesProfile)
     {
         CurrentArena = arenaConfig;
         CurrentDifficultyProfile = difficultyProfile;
         CurrentGameMode = gameModeConfig;
+        CurrentModeRulesProfile = modeRulesProfile;
 
         CurrentWave = 0;
         RunTime = 0f;
@@ -98,6 +102,7 @@ public class ArenaRunContext
         CurrentArena = null;
         CurrentDifficultyProfile = null;
         CurrentGameMode = null;
+        CurrentModeRulesProfile = null;
 
         CurrentWave = 0;
         RunTime = 0f;

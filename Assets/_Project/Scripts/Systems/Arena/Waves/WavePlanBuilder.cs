@@ -2,55 +2,44 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // WavePlanBuilder
-// Это "зам-директор" по конкретной волне.
+// Это планировщик конкретной волны.
 //
 // ВАЖНО:
-// - директор режима решает ОБЩЕЕ направление:
-//   какой бюджет, сколько зон, нужен ли ранний элитник,
-//   нужно ли вмешательство окружения и т.д.
+// Теперь он не просто берёт "первые N зон",
+// а на КАЖДУЮ волну случайно выбирает набор активных зон.
 //
-// - WavePlanBuilder решает КОНКРЕТИКУ:
-//   сколько будет spawn-команд,
-//   в какие точки,
-//   с какими задержками,
-//   какие из них будут элитными.
+// Пример:
+// если доступно 4 зоны, а активных нужно 2,
+// то волна может выбрать:
+// - 0 и 3
+// - 1 и 2
+// - 0 и 2
+// и т.д.
 //
-// То есть:
-// Director -> "что хотим получить"
-// WavePlanBuilder -> "как именно собрать волну"
-// Spawner -> "исполнить готовый план"
+// После этого команды спавна создаются только внутри выбранного набора.
 [DisallowMultipleComponent]
 public class WavePlanBuilder : MonoBehaviour
 {
     [Header("Общая логика планирования")]
-    [SerializeField] private bool useRandomSpawnPoints = true;
-
+    [SerializeField] private bool useRandomSpawnZones = true;
     [SerializeField] private float defaultSpawnInterval = 0.5f;
-    // Базовый интервал между спавнами внутри волны.
-
-    [SerializeField] private int fallbackSpawnPointCount = 4;
-    // Если пока у арены нет отдельного списка точек,
-    // можем использовать запасное число.
-    // Позже это уйдёт в ArenaConfig / SpawnPoint-структуру.
+    [SerializeField] private int fallbackSpawnZoneCount = 4;
 
     [Header("Элитные правила")]
     [SerializeField] private string defaultBasicEnemyTypeId = "melee_basic";
     [SerializeField] private string defaultEliteEnemyTypeId = "melee_elite";
     [SerializeField] private bool convertOneSpawnToElite = true;
 
-    [Header("Безопасность / анти-повтор")]
-    [SerializeField] private bool avoidImmediateSameSpawnPoint = true;
+    [Header("Анти-повтор")]
+    [SerializeField] private bool avoidImmediateSameSpawnZone = true;
 
     [Header("Отладка")]
     [SerializeField] private bool showDebugLogs = true;
 
-    // Запоминаем последнюю использованную точку,
-    // чтобы не долбить одну и ту же точку подряд.
-    private int lastUsedSpawnPointIndex = -1;
+    // Запоминаем последнюю зону спавна,
+    // чтобы внутри волны не бить подряд в одну и ту же.
+    private int lastUsedSpawnZoneIndex = -1;
 
-    /// <summary>
-    /// Собрать конкретный план волны из решения директора.
-    /// </summary>
     public bool TryBuildWavePlan(
         ArenaDirectorDecision directorDecision,
         ArenaRunContext runContext,
@@ -76,7 +65,6 @@ public class WavePlanBuilder : MonoBehaviour
             return false;
         }
 
-        // Создаём контейнер плана.
         wavePlan = new WaveExecutionPlan
         {
             waveNumber = directorDecision.targetWaveNumber,
@@ -87,35 +75,49 @@ public class WavePlanBuilder : MonoBehaviour
             requestEnvironmentIntervention = directorDecision.requestEnvironmentIntervention,
             requestLootIntervention = directorDecision.requestLootIntervention,
             requestServiceIntervention = directorDecision.requestServiceIntervention,
-            spawnCommands = new List<WaveSpawnCommand>()
+            spawnCommands = new List<WaveSpawnCommand>(),
+            activeZoneIndices = new List<int>()
         };
 
-        // Пока MVP-логика простая:
-        // 1 бюджет = 1 базовый враг.
-        //
-        // Позже мы это заменим на нормальную систему стоимости врагов:
-        // - дальник может стоить 2
-        // - элитник 5
-        // - босс 20
-        //
-        // Но сейчас нам нужен рабочий фундамент.
+        // Пока MVP:
+        // 1 бюджет = 1 враг
         int totalSpawnCount = Mathf.Max(1, directorDecision.targetWaveBudget);
 
-        int availableSpawnPointCount = ResolveAvailableSpawnPointCount(runContext);
+        int availableZoneCount = ResolveAvailableSpawnZoneCount(runContext);
         int activeZoneCount = Mathf.Clamp(
             directorDecision.activeSpawnZoneCount,
             1,
-            Mathf.Max(1, availableSpawnPointCount)
+            Mathf.Max(1, availableZoneCount)
         );
 
+        // =====================================================
+        // НОВОЕ:
+        // Выбираем активные зоны СЛУЧАЙНО ДЛЯ ЭТОЙ ВОЛНЫ
+        // =====================================================
+        wavePlan.activeZoneIndices = BuildRandomActiveZoneSet(
+            availableZoneCount,
+            activeZoneCount
+        );
+
+        // На всякий случай: если что-то пошло не так
+        if (wavePlan.activeZoneIndices == null || wavePlan.activeZoneIndices.Count == 0)
+        {
+            wavePlan = WaveExecutionPlan.CreateEmpty("Failed to build active zone set");
+            return false;
+        }
+
+        // Сбрасываем lastUsed, чтобы каждая новая волна начиналась чисто.
+        lastUsedSpawnZoneIndex = -1;
+
+        // Создаём конкретные команды спавна.
         for (int i = 0; i < totalSpawnCount; i++)
         {
-            int spawnPointIndex = ResolveSpawnPointIndex(availableSpawnPointCount, activeZoneCount);
+            int spawnZoneIndex = ResolveSpawnZoneIndexFromActiveSet(wavePlan.activeZoneIndices);
 
             WaveSpawnCommand command = new WaveSpawnCommand
             {
                 enemyTypeId = defaultBasicEnemyTypeId,
-                spawnPointIndex = spawnPointIndex,
+                spawnZoneIndex = spawnZoneIndex,
                 spawnDelay = i * defaultSpawnInterval,
                 isElite = false,
                 debugNote = $"Base spawn #{i + 1}"
@@ -130,90 +132,147 @@ public class WavePlanBuilder : MonoBehaviour
             convertOneSpawnToElite &&
             wavePlan.spawnCommands.Count > 0)
         {
-            int eliteIndex = Mathf.Clamp(wavePlan.spawnCommands.Count - 1, 0, wavePlan.spawnCommands.Count - 1);
+            int eliteIndex = Mathf.Clamp(
+                wavePlan.spawnCommands.Count - 1,
+                0,
+                wavePlan.spawnCommands.Count - 1
+            );
 
             wavePlan.spawnCommands[eliteIndex].enemyTypeId = defaultEliteEnemyTypeId;
             wavePlan.spawnCommands[eliteIndex].isElite = true;
             wavePlan.spawnCommands[eliteIndex].debugNote = "Converted to early elite";
         }
 
-        wavePlan.debugSummary = BuildDebugSummary(directorDecision, totalSpawnCount, activeZoneCount);
+        wavePlan.debugSummary = BuildDebugSummary(
+            directorDecision,
+            totalSpawnCount,
+            wavePlan.activeZoneIndices
+        );
+
         wavePlan.ValidateData();
 
         if (showDebugLogs)
         {
             Debug.Log(
-                $"WavePlanBuilder: built plan. " +
+                $"WavePlanBuilder: built RANDOM zone plan. " +
                 $"Wave = {wavePlan.waveNumber}, " +
                 $"Budget = {wavePlan.sourceBudget}, " +
                 $"Commands = {wavePlan.TotalSpawnCommands}, " +
-                $"Zones = {wavePlan.activeSpawnZoneCount}, " +
-                $"EarlyElite = {wavePlan.containsEarlyElite}"
+                $"ActiveZones = [{string.Join(", ", wavePlan.activeZoneIndices)}]"
             );
         }
 
         return wavePlan.IsValid();
     }
 
-    // =========================================================
-    // ВНУТРЕННЯЯ ЛОГИКА
-    // =========================================================
-
-    private int ResolveAvailableSpawnPointCount(ArenaRunContext runContext)
+    // =====================================================
+    // Собираем СЛУЧАЙНЫЙ набор активных зон на волну
+    // =====================================================
+    private List<int> BuildRandomActiveZoneSet(int availableZoneCount, int activeZoneCount)
     {
-        // Пока у нас ещё нет полноценного слоя SpawnPoint-конфигов,
-        // поэтому берём запасное количество.
-        //
-        // Позже это будет идти из ArenaConfig + SpawnPoint-компонентов на сцене.
-        return Mathf.Max(1, fallbackSpawnPointCount);
+        List<int> allZoneIndices = new List<int>();
+
+        for (int i = 0; i < availableZoneCount; i++)
+        {
+            allZoneIndices.Add(i);
+        }
+
+        // Перемешиваем список
+        ShuffleList(allZoneIndices);
+
+        // Берём только нужное количество активных зон
+        List<int> result = new List<int>();
+
+        for (int i = 0; i < activeZoneCount && i < allZoneIndices.Count; i++)
+        {
+            result.Add(allZoneIndices[i]);
+        }
+
+        return result;
     }
 
-    private int ResolveSpawnPointIndex(int availableSpawnPointCount, int activeZoneCount)
+    // =====================================================
+    // Выбираем одну зону из уже активного набора этой волны
+    // =====================================================
+    private int ResolveSpawnZoneIndexFromActiveSet(List<int> activeZoneIndices)
     {
-        int usableCount = Mathf.Clamp(activeZoneCount, 1, Mathf.Max(1, availableSpawnPointCount));
+        if (activeZoneIndices == null || activeZoneIndices.Count == 0)
+            return 0;
 
-        // Пока MVP-подход такой:
-        // используем первые usableCount точек.
-        // Позже можно будет делать:
-        // - реальные зоны
-        // - фильтр по типам
-        // - безопасную дистанцию от игрока
-        // - более умный anti-repeat
-        int resultIndex;
+        int resultZone;
 
-        if (useRandomSpawnPoints)
+        if (useRandomSpawnZones)
         {
-            resultIndex = Random.Range(0, usableCount);
+            int randomLocalIndex = Random.Range(0, activeZoneIndices.Count);
+            resultZone = activeZoneIndices[randomLocalIndex];
 
-            if (avoidImmediateSameSpawnPoint &&
-                usableCount > 1 &&
-                resultIndex == lastUsedSpawnPointIndex)
+            if (avoidImmediateSameSpawnZone &&
+                activeZoneIndices.Count > 1 &&
+                resultZone == lastUsedSpawnZoneIndex)
             {
-                // Очень простой anti-repeat:
-                // если случайно попали в ту же точку, пробуем сдвинуть.
-                resultIndex = (resultIndex + 1) % usableCount;
+                // Очень простая защита от повтора:
+                // сдвигаемся на следующую зону в списке.
+                int shiftedLocalIndex = (randomLocalIndex + 1) % activeZoneIndices.Count;
+                resultZone = activeZoneIndices[shiftedLocalIndex];
             }
         }
         else
         {
-            resultIndex = (lastUsedSpawnPointIndex + 1 + usableCount) % usableCount;
+            // Если случайность выключена —
+            // идём по активным зонам по кругу.
+            int startIndex = 0;
+
+            if (lastUsedSpawnZoneIndex != -1)
+            {
+                int foundIndex = activeZoneIndices.IndexOf(lastUsedSpawnZoneIndex);
+                if (foundIndex >= 0)
+                    startIndex = (foundIndex + 1) % activeZoneIndices.Count;
+            }
+
+            resultZone = activeZoneIndices[startIndex];
         }
 
-        lastUsedSpawnPointIndex = resultIndex;
-        return resultIndex;
+        lastUsedSpawnZoneIndex = resultZone;
+        return resultZone;
+    }
+
+    private int ResolveAvailableSpawnZoneCount(ArenaRunContext runContext)
+    {
+        // Пока MVP:
+        // используем запасное число зон.
+        return Mathf.Max(1, fallbackSpawnZoneCount);
+    }
+
+    private void ShuffleList<T>(List<T> list)
+    {
+        if (list == null || list.Count <= 1)
+            return;
+
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+
+            T temp = list[i];
+            list[i] = list[randomIndex];
+            list[randomIndex] = temp;
+        }
     }
 
     private string BuildDebugSummary(
         ArenaDirectorDecision directorDecision,
         int totalSpawnCount,
-        int activeZoneCount)
+        List<int> activeZoneIndices)
     {
+        string zonesText = activeZoneIndices != null
+            ? string.Join(", ", activeZoneIndices)
+            : "none";
+
         string summary =
             $"WavePlan built from decision. " +
             $"Wave = {directorDecision.targetWaveNumber}, " +
             $"Budget = {directorDecision.targetWaveBudget}, " +
             $"SpawnCount = {totalSpawnCount}, " +
-            $"Zones = {activeZoneCount}.";
+            $"ActiveZones = [{zonesText}].";
 
         if (directorDecision.requestEarlyElite)
             summary += " Early elite requested.";

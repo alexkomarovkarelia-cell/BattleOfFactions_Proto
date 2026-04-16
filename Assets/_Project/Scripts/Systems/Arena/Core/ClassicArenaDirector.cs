@@ -130,7 +130,9 @@ public class ClassicArenaDirector : MonoBehaviour, IArenaDirector
         // директор может раньше включить дополнительные меры.
         bool lastWaveWasVeryEasy = runContext.LastWaveWasVeryEasy;
 
-        if (lastWaveWasVeryEasy && nextWaveNumber >= minimumWaveForEarlyElite)
+        if (lastWaveWasVeryEasy &&
+      nextWaveNumber >= minimumWaveForEarlyElite &&
+      IsEarlyElitePressureAllowed())
         {
             decision.requestEarlyElite = true;
         }
@@ -224,23 +226,33 @@ public class ClassicArenaDirector : MonoBehaviour, IArenaDirector
 
     private int CalculateWaveBudget(int waveNumber)
     {
+        // 1. Если есть профиль правил режима и он включает разогрев —
+        // первые волны считаем по отдельным правилам.
+        ArenaModeRulesProfile rules = runContext.CurrentModeRulesProfile;
+
+        if (rules != null &&
+            rules.useWarmupStart &&
+            waveNumber <= rules.warmupWaveCount)
+        {
+            int warmupBudget = rules.warmupStartBudget +
+                               Mathf.Max(0, waveNumber - 1) * rules.warmupBudgetGrowthPerWave;
+
+            return Mathf.Max(1, warmupBudget);
+        }
+
+        // 2. Если разогрев уже закончился —
+        // используем обычную сложность как базу.
         int startBudget = GetStartBudgetForDifficulty();
         int growthPerWave = GetBudgetGrowthForDifficulty();
 
-        // Рост идёт с первой волны аккуратно:
-        // волна 1 = базовый бюджет
-        // волна 2 = базовый + growth
-        // волна 3 = базовый + growth * 2
         int budget = startBudget + Mathf.Max(0, waveNumber - 1) * growthPerWave;
 
-        // Если режим запрещает рост бюджета —
-        // оставляем базовое значение.
         if (runContext.CurrentGameMode != null && !runContext.CurrentGameMode.useBudgetGrowth)
         {
             budget = startBudget;
         }
 
-        return Mathf.Max(0, budget);
+        return Mathf.Max(1, budget);
     }
 
     private int CalculateActiveSpawnZoneCount(int waveNumber)
@@ -283,9 +295,19 @@ public class ClassicArenaDirector : MonoBehaviour, IArenaDirector
         bool modeAllows = runContext.CurrentGameMode != null &&
                           runContext.CurrentGameMode.allowEnvironmentInterventions;
 
-        return arenaAllows && modeAllows;
+        bool rulesAllow = runContext.CurrentModeRulesProfile != null &&
+                          runContext.CurrentModeRulesProfile.allowEnvironmentPressure;
+
+        return arenaAllows && modeAllows && rulesAllow;
     }
 
+    private bool IsEarlyElitePressureAllowed()
+    {
+        bool rulesAllow = runContext.CurrentModeRulesProfile != null &&
+                          runContext.CurrentModeRulesProfile.allowEarlyElitePressure;
+
+        return rulesAllow;
+    }
     private int GetStartBudgetForDifficulty()
     {
         if (runContext.CurrentDifficultyProfile == null)

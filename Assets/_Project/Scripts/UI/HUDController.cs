@@ -5,150 +5,227 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using System.Collections;
 
-
-// HUDController — управляет UI на Canvas.
-// Он НЕ хранит игровую логику, а только "показывает" информацию и включает/выключает панели.
+// HUDController
+// Это ВРЕМЕННЫЙ UI-контроллер.
 //
-// Что он делает:
-// 1) Показывает HP и монеты
-// 2) Показывает волну и прогресс волны
-// 3) Показывает сообщение по центру (между волнами, таймер и т.д.)
-// 4) Показывает ResultPanel (ПОБЕДА/ПОРАЖЕНИЕ) и умеет перезапускать сцену
-// 5) Управляет StartPanel и запускает спавн после кнопки START
+// ВАЖНО:
+// - он НЕ хранит боевую логику
+// - он НЕ решает, какую волну запускать
+// - он НЕ является мозгом арены
+//
+// Его задача:
+// 1) показывать тексты HUD
+// 2) показывать стартовую панель
+// 3) по кнопке START передавать выбранные config-данные в ArenaModeController
+// 4) показывать результат (ПОБЕДА / ПОРАЖЕНИЕ)
+// 5) уметь перезапускать сцену
+//
+// То есть теперь HUD не работает со старым EnemySpawner,
+// а работает через новую систему арены: ArenaModeController.
 public class HUDController : MonoBehaviour
 {
-    // ===== Ссылки на элементы UI (TextMeshPro) =====
-    // Эти поля заполняются в Inspector: перетаскиваешь нужные Text элементы.
+    // =========================================================
+    // ССЫЛКИ НА ТЕКСТЫ HUD
+    // =========================================================
+
     [Header("HUD Texts (TMP)")]
-    [SerializeField] private TMP_Text healthText; // текст "HP: 90/100"
-    [SerializeField] private TMP_Text coinsText;  // текст "Монеты: 15"
+    [SerializeField] private TMP_Text healthText;
+    [SerializeField] private TMP_Text coinsText;
 
-    // ===== UI волн =====
     [Header("Wave HUD (TMP)")]
-    [SerializeField] private TMP_Text waveText;          // например "Волна: 1/50"
-    [SerializeField] private TMP_Text waveProgressText;  // например "Врагов: 2/5"
-    [SerializeField] private TMP_Text centerMessageText; // сообщение по центру: "Следующая волна через 3..."
+    [SerializeField] private TMP_Text waveText;
+    [SerializeField] private TMP_Text waveProgressText;
+    [SerializeField] private TMP_Text centerMessageText;
 
-    // ===== Панель результата (Победа/Поражение) =====
+    // =========================================================
+    // ПАНЕЛЬ РЕЗУЛЬТАТА
+    // =========================================================
+
     [Header("Result Panel")]
-    [SerializeField] private GameObject resultPanel;   // весь объект панели результата
-    [SerializeField] private TMP_Text resultTitleText; // "ПОБЕДА" или "ПОРАЖЕНИЕ"
-    [SerializeField] private TMP_Text resultHintText;  // "Нажми R или кнопку RESTART"
-    [SerializeField] private TMP_Text resultStatsText; // "Пройдено волн: X/Y"
-    [SerializeField] private Button restartButton;     // кнопка RESTART
+    [SerializeField] private GameObject resultPanel;
+    [SerializeField] private TMP_Text resultTitleText;
+    [SerializeField] private TMP_Text resultHintText;
+    [SerializeField] private TMP_Text resultStatsText;
+    [SerializeField] private Button restartButton;
 
-    // ===== Стартовая панель (START) =====
+    // =========================================================
+    // СТАРТОВАЯ ПАНЕЛЬ
+    // =========================================================
+
     [Header("Start Panel")]
-    [SerializeField] private GameObject startPanel; // панель со стартовой кнопкой
-    [SerializeField] private Button startButton;    // кнопка START
+    [SerializeField] private GameObject startPanel;
+    [SerializeField] private Button startButton;
     [SerializeField] private TMP_Dropdown difficultyDropdown;
 
-    // ===== Ссылка на спавнер =====
-    // HUD запускает спавн только после нажатия START
-    // и останавливает спавн при ПОБЕДЕ/ПОРАЖЕНИИ.
-    [Header("Spawner")]
-    [SerializeField] private EnemySpawner spawner;
+    // =========================================================
+    // НОВАЯ СИСТЕМА АРЕНЫ
+    // =========================================================
 
-    // Флаг: показан ли результат (чтобы R работала только после победы/поражения)
+    [Header("Arena System")]
+    [SerializeField] private ArenaModeController arenaModeController;
+
+    [Tooltip("Какая арена будет выбрана сейчас. Пока берём одну базовую арену.")]
+    [SerializeField] private ArenaConfig defaultArenaConfig;
+
+    [Tooltip("Режим Классика. Пока кнопка START запускает именно его.")]
+    [SerializeField] private GameModeConfig classicModeConfig;
+
+    [Tooltip("Профиль сложности Easy.")]
+    [SerializeField] private ArenaDifficultyProfile easyDifficultyProfile;
+
+    [Tooltip("Профиль сложности Normal.")]
+    [SerializeField] private ArenaDifficultyProfile normalDifficultyProfile;
+
+    [Tooltip("Профиль сложности Hard.")]
+    [SerializeField] private ArenaDifficultyProfile hardDifficultyProfile;
+
+    // Флаг: показан ли результат
     private bool resultShown = false;
 
     private void Awake()
     {
-        // Awake вызывается до Start, когда объект создаётся.
-        // Здесь мы подготавливаем UI в "начальное состояние".
+        // Скрываем результат
+        if (resultPanel != null)
+            resultPanel.SetActive(false);
 
-        // Скрываем панель результата (чтобы при запуске она не была видна)
-        if (resultPanel != null) resultPanel.SetActive(false);
+        // Скрываем сообщение по центру
+        if (centerMessageText != null)
+            centerMessageText.gameObject.SetActive(false);
 
-        // Скрываем центральное сообщение (оно показывается только когда нужно)
-        if (centerMessageText != null) centerMessageText.gameObject.SetActive(false);
+        // Показываем стартовую панель
+        if (startPanel != null)
+            startPanel.SetActive(true);
 
-        // Показываем стартовую панель (игра начнётся только после START)
-        if (startPanel != null) startPanel.SetActive(true);
+        // Подписываем кнопки
+        if (restartButton != null)
+            restartButton.onClick.AddListener(RestartScene);
 
-        // Подписываем кнопки на действия:
-        // restartButton -> RestartScene()
-        // startButton   -> StartGame()
-        if (restartButton != null) restartButton.onClick.AddListener(RestartScene);
-        if (startButton != null) startButton.onClick.AddListener(StartGame);
+        if (startButton != null)
+            startButton.onClick.AddListener(StartGame);
 
-        // Важный момент:
-        // Мы ставим паузу игре, пока игрок не нажмёт START.
-        // Time.timeScale = 0 -> "время остановлено", Update работает, UI работает,
-        // но физика/движение/анимации (зависящие от deltaTime) обычно "замерзают".
+        // До старта ставим игру на паузу
         Time.timeScale = 0f;
     }
 
     private void Update()
     {
-        // R — рестарт только когда показан результат,
-        // чтобы случайно не перезапустить игру во время боя.
-        //
-        // Keyboard.current — это New Input System.
-        // rKey.wasPressedThisFrame — нажатие именно в этот кадр.
-        if (resultShown && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+        // Разрешаем R только после показа результата
+        if (resultShown &&
+            Keyboard.current != null &&
+            Keyboard.current.rKey.wasPressedThisFrame)
+        {
             RestartScene();
+        }
     }
 
-    // Нажатие START:
-    // 1) прячем StartPanel
-    // 2) снимаем паузу (timeScale = 1)
-    // 3) просим спавнер начать спавнить
+    // =========================================================
+    // СТАРТ ИГРЫ
+    // =========================================================
+
     public void StartGame()
     {
-        SFXPlayer.I?.PlayStart();   // ✅ звук старта
+        // Звук старта
+        SFXPlayer.I?.PlayStart();
 
-        if (startPanel != null) startPanel.SetActive(false);
-
-        // Возвращаем "нормальное течение времени"
-        Time.timeScale = 1f;
-        // Перед стартом сообщаем спавнеру выбранную сложность
-        if (difficultyDropdown != null && spawner != null)
+        if (arenaModeController == null)
         {
-            // 0=Easy, 1=Normal, 2=Hard (как в dropdown)
-            var id = (ArenaDifficultyId)difficultyDropdown.value;
-            spawner.SetDifficulty(id);
+            Debug.LogWarning("HUDController: не назначен ArenaModeController.");
+            return;
         }
-        // Запускаем спавн врагов, если спавнер назначен
-        if (spawner != null)
-            spawner.BeginSpawning();
+
+        if (defaultArenaConfig == null)
+        {
+            Debug.LogWarning("HUDController: не назначен defaultArenaConfig.");
+            return;
+        }
+
+        if (classicModeConfig == null)
+        {
+            Debug.LogWarning("HUDController: не назначен classicModeConfig.");
+            return;
+        }
+
+        ArenaDifficultyProfile selectedDifficulty = ResolveDifficultyFromDropdown();
+        if (selectedDifficulty == null)
+        {
+            Debug.LogWarning("HUDController: не удалось определить выбранную сложность.");
+            return;
+        }
+
+        // Передаём выбранные конфиги в новую систему арены
+        arenaModeController.SetSelectedConfigs(
+            defaultArenaConfig,
+            selectedDifficulty,
+            classicModeConfig
+        );
+
+        // Прячем стартовую панель
+        if (startPanel != null)
+            startPanel.SetActive(false);
+
+        // Возвращаем нормальное течение времени
+        Time.timeScale = 1f;
+
+        // Запускаем новую систему арены
+        arenaModeController.BeginArenaRun();
     }
 
-    // ===== Методы обновления HUD (вызываются из других скриптов) =====
+    // Определяем профиль сложности по dropdown.
+    // Пока логика простая:
+    // 0 = Easy
+    // 1 = Normal
+    // 2 = Hard
+    private ArenaDifficultyProfile ResolveDifficultyFromDropdown()
+    {
+        if (difficultyDropdown == null)
+        {
+            // Если dropdown вдруг не назначен —
+            // для подстраховки берём Normal.
+            return normalDifficultyProfile;
+        }
 
-    // Обновление здоровья:
-    // current и max у тебя float, но мы округляем вверх CeilToInt, чтобы красиво показывать целыми.
-    // (если ты используешь int HP — тоже норм, просто передашь int как float)
+        switch (difficultyDropdown.value)
+        {
+            case 0:
+                return easyDifficultyProfile;
+
+            case 2:
+                return hardDifficultyProfile;
+
+            case 1:
+            default:
+                return normalDifficultyProfile;
+        }
+    }
+
+    // =========================================================
+    // МЕТОДЫ ОБНОВЛЕНИЯ HUD
+    // =========================================================
+
     public void SetHealth(float current, float max)
     {
         if (healthText == null) return;
-
-        // Пример: HP: 75/100
         healthText.text = $"HP: {Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
     }
 
-    // Обновление монет
     public void SetCoins(int coins)
     {
         if (coinsText == null) return;
         coinsText.text = $"Монеты: {coins}";
     }
 
-    // Показ текущей волны
     public void SetWave(int waveNumber, int totalWaves)
     {
         if (waveText == null) return;
         waveText.text = $"Волна: {waveNumber}/{totalWaves}";
     }
 
-    // Прогресс волны: сколько врагов убито из нужного количества
     public void SetWaveProgress(int killedThisWave, int needThisWave)
     {
         if (waveProgressText == null) return;
         waveProgressText.text = $"Врагов: {killedThisWave}/{needThisWave}";
     }
 
-    // Показать сообщение по центру (например: "Следующая волна через 3")
     public void ShowCenterMessage(string msg)
     {
         if (centerMessageText == null) return;
@@ -156,73 +233,97 @@ public class HUDController : MonoBehaviour
         centerMessageText.text = msg;
     }
 
-    // Спрятать центральное сообщение
     public void HideCenterMessage()
     {
         if (centerMessageText == null) return;
         centerMessageText.gameObject.SetActive(false);
     }
 
-    // ===== Result (WIN / GAME OVER) =====
+    // =========================================================
+    // RESULT (WIN / LOSE)
+    // =========================================================
 
-    // Победа: просто вызываем универсальный ShowResult с нужными текстами
     public void ShowWin()
     {
-        SFXPlayer.I?.PlayWin(); // ✅Звук  победы
+        SFXPlayer.I?.PlayWin();
         ShowResult("ПОБЕДА", "Нажми R или кнопку RESTART");
     }
 
-    // Поражение: аналогично
     public void ShowGameOver()
     {
-        SFXPlayer.I?.PlayLose(); // ✅ Звук поражения
+        SFXPlayer.I?.PlayLose();
         ShowResult("ПОРАЖЕНИЕ", "Нажми R или кнопку RESTART");
     }
 
-    // Общий метод показа результата
     private void ShowResult(string title, string hint)
     {
-        // Запоминаем, что результат показан (теперь можно жать R)
         resultShown = true;
 
         // Ставим игру на паузу
         Time.timeScale = 0f;
 
-        // Останавливаем спавнер, чтобы враги не продолжали появляться во время результата
-        spawner?.StopSpawning();
+        // Останавливаем новый забег арены
+        arenaModeController?.StopArenaRun();
 
-        // Показываем панель результата и выставляем тексты
-        if (resultPanel != null) resultPanel.SetActive(true);
-        if (resultTitleText != null) resultTitleText.text = title;
-        if (resultHintText != null) resultHintText.text = hint;
+        if (resultPanel != null)
+            resultPanel.SetActive(true);
 
-        // Статистика результата: "Пройдено волн: X/Y"
-        // WavesCompleted и TotalWaves — это свойства/поля в EnemySpawner.
-        if (resultStatsText != null && spawner != null)
-        {
-            resultStatsText.text = $"Пройдено волн: {spawner.WavesCompleted}/{spawner.TotalWaves}";
-        }
+        if (resultTitleText != null)
+            resultTitleText.text = title;
+
+        if (resultHintText != null)
+            resultHintText.text = hint;
+
+        if (resultStatsText != null)
+            resultStatsText.text = BuildResultStatsText();
     }
 
-    // Перезапуск сцены:
-    // 1) снимаем паузу (на всякий случай)
-    // 2) загружаем текущую сцену заново
+    // Собираем текст статистики из новой системы арены.
+    private string BuildResultStatsText()
+    {
+        if (arenaModeController == null || arenaModeController.CurrentRunContext == null)
+            return "Статистика недоступна";
+
+        ArenaRunContext runContext = arenaModeController.CurrentRunContext;
+
+        int completedWaves = runContext.CompletedWaves;
+
+        // Если это бесконечный режим — показываем просто число пройденных волн.
+        if (runContext.CurrentGameMode != null && runContext.CurrentGameMode.isEndless)
+        {
+            return $"Пройдено волн: {completedWaves}";
+        }
+
+        // Если профиль сложности переопределяет общее число волн — используем его.
+        if (runContext.CurrentDifficultyProfile != null &&
+            runContext.CurrentDifficultyProfile.overrideTotalWaves)
+        {
+            return $"Пройдено волн: {completedWaves}/{runContext.CurrentDifficultyProfile.totalWaves}";
+        }
+
+        // Иначе используем лимит режима.
+        if (runContext.CurrentGameMode != null)
+        {
+            return $"Пройдено волн: {completedWaves}/{runContext.CurrentGameMode.maxWaves}";
+        }
+
+        return $"Пройдено волн: {completedWaves}";
+    }
+
+    // =========================================================
+    // RESTART
+    // =========================================================
+
     private void RestartScene()
     {
-        // ✅ можно использовать startClip, либо позже добавишь отдельный restartClip
         SFXPlayer.I?.PlayStart();
-
         StartCoroutine(RestartAfterSound());
     }
 
     private IEnumerator RestartAfterSound()
     {
         Time.timeScale = 1f;
-
-        // Небольшая пауза, чтобы звук успел прозвучать (не зависит от timeScale)
         yield return new WaitForSecondsRealtime(0.15f);
-
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
-
 }

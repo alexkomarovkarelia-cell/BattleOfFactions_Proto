@@ -4,20 +4,17 @@ using UnityEngine;
 // ArenaModeController
 // Это общий управляющий слой выбора режима.
 //
-// ВАЖНО:
-// Это НЕ директор режима.
-// Это "роутер" / "контроллер режимов".
-//
 // Его задача:
 // - хранить выбранные config-данные
 // - создать ArenaRunContext
-// - выбрать нужного директора по режиму
-// - передать ему контекст
-// - потом обращаться к директору единым способом
+// - выбрать нужного директора
+// - запросить у директора решение
+// - передать решение в WavePlanBuilder
+// - передать готовый план волны в ArenaWaveSpawner
 //
-// То есть:
-// ArenaModeController -> выбирает мозг режима
-// IArenaDirector      -> уже думает в рамках своего режима
+// ВАЖНО:
+// Это не мозг режима.
+// Мозг режима = конкретный директор (например ClassicArenaDirector).
 [DisallowMultipleComponent]
 public class ArenaModeController : MonoBehaviour
 {
@@ -26,8 +23,13 @@ public class ArenaModeController : MonoBehaviour
     [SerializeField] private ArenaDifficultyProfile selectedDifficultyProfile;
     [SerializeField] private GameModeConfig selectedGameMode;
 
+    [Header("Исполнители")]
+    [SerializeField] private WavePlanBuilder wavePlanBuilder;
+    [SerializeField] private ArenaWaveSpawner arenaWaveSpawner;
+    [SerializeField] private ArenaModeRulesProfile selectedModeRulesProfile;
+
     [Header("Директоры режимов")]
-    [Tooltip("Сюда потом подключим ClassicArenaDirector.")]
+    [Tooltip("Сюда подключаем ClassicArenaDirector.")]
     [SerializeField] private MonoBehaviour classicDirectorBehaviour;
 
     [Tooltip("Сюда потом подключим SurvivalArenaDirector.")]
@@ -55,7 +57,6 @@ public class ArenaModeController : MonoBehaviour
     // Текущий контекст забега.
     private ArenaRunContext currentRunContext;
 
-    // Публичный доступ только для чтения.
     public ArenaRunContext CurrentRunContext => currentRunContext;
     public IArenaDirector ActiveDirector => activeDirector;
 
@@ -64,10 +65,18 @@ public class ArenaModeController : MonoBehaviour
         CacheDirectors();
     }
 
+    private void OnEnable()
+    {
+        SubscribeSpawnerEvents();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeSpawnerEvents();
+    }
+
     private void Update()
     {
-        // Автоматически обновляем время забега,
-        // если забег уже активен.
         if (autoTickRunTime &&
             currentRunContext != null &&
             currentRunContext.IsRunActive &&
@@ -76,23 +85,64 @@ public class ArenaModeController : MonoBehaviour
             currentRunContext.TickRunTime(Time.deltaTime);
         }
 
-        // Даём директору режимный Tick,
-        // если он уже активен.
         activeDirector?.Tick(Time.deltaTime);
     }
 
     // =========================================================
-    // ПОДГОТОВКА И ЗАПУСК ЗАБЕГА
+    // ПУБЛИЧНЫЙ СТАРТ / СТОП
     // =========================================================
 
-    // Подготовить новый забег:
-    // - проверить configs
-    // - выбрать нужного директора
-    // - создать и инициализировать context
+    public void BeginArenaRun()
+    {
+        // Если забег уже активен — второй раз не запускаем.
+        if (currentRunContext != null &&
+            currentRunContext.IsRunActive &&
+            !currentRunContext.IsRunFinished)
+        {
+            if (showDebugLogs)
+                Debug.Log("ArenaModeController: забег уже активен.");
+            return;
+        }
+
+        bool prepared = PrepareRun();
+        if (!prepared)
+        {
+            Debug.LogWarning("ArenaModeController: не удалось подготовить забег.");
+            return;
+        }
+
+        RequestAndStartNextWave();
+    }
+
+    public void StopArenaRun()
+    {
+        if (showDebugLogs)
+            Debug.Log("ArenaModeController: принудительная остановка забега.");
+
+        arenaWaveSpawner?.StopCurrentWave();
+        FinishRun();
+    }
+
+    // =========================================================
+    // ПОДГОТОВКА ЗАБЕГА
+    // =========================================================
+
     public bool PrepareRun()
     {
         if (!ValidateSelectedConfigs())
             return false;
+
+        if (wavePlanBuilder == null)
+        {
+            Debug.LogWarning("ArenaModeController: не назначен WavePlanBuilder.");
+            return false;
+        }
+
+        if (arenaWaveSpawner == null)
+        {
+            Debug.LogWarning("ArenaModeController: не назначен ArenaWaveSpawner.");
+            return false;
+        }
 
         CacheDirectors();
 
@@ -105,57 +155,127 @@ public class ArenaModeController : MonoBehaviour
         }
 
         currentRunContext = new ArenaRunContext();
+
         currentRunContext.StartNewRun(
             selectedArenaConfig,
             selectedDifficultyProfile,
-            selectedGameMode
+            selectedGameMode,
+            selectedModeRulesProfile
         );
-
         activeDirector.Initialize(currentRunContext);
 
         if (showDebugLogs)
         {
             Debug.Log(
-                $"ArenaModeController: подготовлен забег. " +
-                $"Mode = {selectedGameMode.modeId}, " +
-                $"Arena = {selectedArenaConfig.arenaId}, " +
-                $"Difficulty = {selectedDifficultyProfile.id}"
-            );
+     $"ArenaModeController: подготовлен забег. " +
+     $"Mode = {selectedGameMode.modeId}, " +
+     $"Arena = {selectedArenaConfig.arenaId}, " +
+     $"Difficulty = {selectedDifficultyProfile.id}, " +
+     $"Rules = {selectedModeRulesProfile.rulesId}"
+ );
         }
 
         return true;
     }
 
-    // Попросить у текущего директора решение.
-    // Пока это просто каркасный вызов.
-    public bool TryBuildNextDecision(out ArenaDirectorDecision decision)
-    {
-        decision = null;
+    // =========================================================
+    // ЗАПРОС РЕШЕНИЯ У ДИРЕКТОРА И ЗАПУСК ВОЛНЫ
+    // =========================================================
 
+    private void RequestAndStartNextWave()
+    {
         if (activeDirector == null)
         {
-            Debug.LogWarning("ArenaModeController: активный директор не назначен.");
-            return false;
+            Debug.LogWarning("ArenaModeController: активный директор отсутствует.");
+            FinishRun();
+            return;
         }
 
-        bool success = activeDirector.TryBuildDecision(out decision);
+        bool success = activeDirector.TryBuildDecision(out ArenaDirectorDecision directorDecision);
 
-        if (success && decision != null)
+        if (!success || directorDecision == null || !directorDecision.isValidDecision || !directorDecision.shouldStartWave)
         {
-            decision.ValidateData();
-
             if (showDebugLogs)
             {
-                Debug.Log(
-                    $"ArenaModeController: директор вернул решение. " +
-                    $"Wave = {decision.targetWaveNumber}, " +
-                    $"Budget = {decision.targetWaveBudget}, " +
-                    $"Reason = {decision.debugReason}"
-                );
+                string reason = directorDecision != null ? directorDecision.debugReason : "No decision";
+                Debug.Log($"ArenaModeController: директор не дал новую волну. Причина: {reason}");
             }
+
+            FinishRun();
+            return;
         }
 
-        return success;
+        if (!wavePlanBuilder.TryBuildWavePlan(directorDecision, currentRunContext, out WaveExecutionPlan wavePlan))
+        {
+            Debug.LogWarning("ArenaModeController: WavePlanBuilder не смог собрать WaveExecutionPlan.");
+            FinishRun();
+            return;
+        }
+
+        if (wavePlan == null || !wavePlan.IsValid())
+        {
+            Debug.LogWarning("ArenaModeController: получен невалидный WaveExecutionPlan.");
+            FinishRun();
+            return;
+        }
+
+        // ВАЖНО:
+        // переводим контекст на новую волну только когда реально запускаем её
+        currentRunContext.AdvanceToNextWave();
+
+        bool started = arenaWaveSpawner.StartWave(wavePlan);
+        if (!started)
+        {
+            Debug.LogWarning("ArenaModeController: ArenaWaveSpawner не смог запустить волну.");
+            FinishRun();
+            return;
+        }
+
+        if (showDebugLogs)
+        {
+            Debug.Log(
+                $"ArenaModeController: запущена волна {wavePlan.waveNumber}, " +
+                $"commands = {wavePlan.TotalSpawnCommands}"
+            );
+        }
+    }
+
+    // =========================================================
+    // СОБЫТИЯ ОТ НОВОГО СПАВНЕРА
+    // =========================================================
+
+    private void SubscribeSpawnerEvents()
+    {
+        if (arenaWaveSpawner == null)
+            return;
+
+        arenaWaveSpawner.WaveCompleted -= HandleWaveCompleted;
+        arenaWaveSpawner.EnemyKilled -= HandleEnemyKilled;
+
+        arenaWaveSpawner.WaveCompleted += HandleWaveCompleted;
+        arenaWaveSpawner.EnemyKilled += HandleEnemyKilled;
+    }
+
+    private void UnsubscribeSpawnerEvents()
+    {
+        if (arenaWaveSpawner == null)
+            return;
+
+        arenaWaveSpawner.WaveCompleted -= HandleWaveCompleted;
+        arenaWaveSpawner.EnemyKilled -= HandleEnemyKilled;
+    }
+
+    private void HandleWaveCompleted(float waveDuration, bool wasVeryEasy)
+    {
+        NotifyWaveCompleted(waveDuration, wasVeryEasy);
+
+        // После завершения волны сразу запрашиваем следующую.
+        RequestAndStartNextWave();
+    }
+
+    private void HandleEnemyKilled()
+    {
+        RegisterEnemyKill();
     }
 
     // =========================================================
@@ -216,12 +336,15 @@ public class ArenaModeController : MonoBehaviour
             Debug.LogWarning("ArenaModeController: не назначен GameModeConfig.");
             return false;
         }
+        if (selectedModeRulesProfile == null)
+        {
+            Debug.LogWarning("ArenaModeController: не назначен ArenaModeRulesProfile.");
+            return false;
+        }
 
         return true;
     }
 
-    // Преобразуем MonoBehaviour-поля в IArenaDirector.
-    // Это нужно потому, что интерфейсы напрямую в Inspector не назначаются.
     private void CacheDirectors()
     {
         classicDirector = CastDirector(classicDirectorBehaviour, "classic");
@@ -239,14 +362,10 @@ public class ArenaModeController : MonoBehaviour
 
         if (director == null)
         {
-            Debug.LogWarning(
-                $"ArenaModeController: объект {behaviour.name} не реализует IArenaDirector."
-            );
+            Debug.LogWarning($"ArenaModeController: объект {behaviour.name} не реализует IArenaDirector.");
             return null;
         }
 
-        // Небольшая подстраховка:
-        // если подключили не тот директор не в тот слот.
         if (!string.Equals(director.DirectorModeId, expectedModeId, StringComparison.OrdinalIgnoreCase))
         {
             Debug.LogWarning(
@@ -284,10 +403,6 @@ public class ArenaModeController : MonoBehaviour
                 return null;
         }
     }
-
-    // =========================================================
-    // ПУБЛИЧНЫЕ СЕТТЕРЫ (на будущее)
-    // =========================================================
 
     public void SetSelectedConfigs(
         ArenaConfig arenaConfig,
