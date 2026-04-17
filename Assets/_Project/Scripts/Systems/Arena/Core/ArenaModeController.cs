@@ -22,11 +22,11 @@ public class ArenaModeController : MonoBehaviour
     [SerializeField] private ArenaConfig selectedArenaConfig;
     [SerializeField] private ArenaDifficultyProfile selectedDifficultyProfile;
     [SerializeField] private GameModeConfig selectedGameMode;
+    [SerializeField] private ArenaModeRulesProfile selectedModeRulesProfile;
 
     [Header("Исполнители")]
     [SerializeField] private WavePlanBuilder wavePlanBuilder;
     [SerializeField] private ArenaWaveSpawner arenaWaveSpawner;
-    [SerializeField] private ArenaModeRulesProfile selectedModeRulesProfile;
 
     [Header("Директоры режимов")]
     [Tooltip("Сюда подключаем ClassicArenaDirector.")]
@@ -45,16 +45,12 @@ public class ArenaModeController : MonoBehaviour
     [SerializeField] private bool autoTickRunTime = true;
     [SerializeField] private bool showDebugLogs = true;
 
-    // Кэш интерфейсов директоров.
     private IArenaDirector classicDirector;
     private IArenaDirector survivalDirector;
     private IArenaDirector constructorDirector;
     private IArenaDirector pvpDirector;
 
-    // Активный директор текущего режима.
     private IArenaDirector activeDirector;
-
-    // Текущий контекст забега.
     private ArenaRunContext currentRunContext;
 
     public ArenaRunContext CurrentRunContext => currentRunContext;
@@ -88,13 +84,8 @@ public class ArenaModeController : MonoBehaviour
         activeDirector?.Tick(Time.deltaTime);
     }
 
-    // =========================================================
-    // ПУБЛИЧНЫЙ СТАРТ / СТОП
-    // =========================================================
-
     public void BeginArenaRun()
     {
-        // Если забег уже активен — второй раз не запускаем.
         if (currentRunContext != null &&
             currentRunContext.IsRunActive &&
             !currentRunContext.IsRunFinished)
@@ -123,10 +114,6 @@ public class ArenaModeController : MonoBehaviour
         FinishRun();
     }
 
-    // =========================================================
-    // ПОДГОТОВКА ЗАБЕГА
-    // =========================================================
-
     public bool PrepareRun()
     {
         if (!ValidateSelectedConfigs())
@@ -154,6 +141,8 @@ public class ArenaModeController : MonoBehaviour
             return false;
         }
 
+        // ВАЖНО:
+        // создаём новый контекст перед стартом забега
         currentRunContext = new ArenaRunContext();
 
         currentRunContext.StartNewRun(
@@ -162,25 +151,22 @@ public class ArenaModeController : MonoBehaviour
             selectedGameMode,
             selectedModeRulesProfile
         );
+
         activeDirector.Initialize(currentRunContext);
 
         if (showDebugLogs)
         {
             Debug.Log(
-     $"ArenaModeController: подготовлен забег. " +
-     $"Mode = {selectedGameMode.modeId}, " +
-     $"Arena = {selectedArenaConfig.arenaId}, " +
-     $"Difficulty = {selectedDifficultyProfile.id}, " +
-     $"Rules = {selectedModeRulesProfile.rulesId}"
- );
+                $"ArenaModeController: подготовлен забег. " +
+                $"Mode = {selectedGameMode.modeId}, " +
+                $"Arena = {selectedArenaConfig.arenaId}, " +
+                $"Difficulty = {selectedDifficultyProfile.id}, " +
+                $"Rules = {selectedModeRulesProfile.rulesId}"
+            );
         }
 
         return true;
     }
-
-    // =========================================================
-    // ЗАПРОС РЕШЕНИЯ У ДИРЕКТОРА И ЗАПУСК ВОЛНЫ
-    // =========================================================
 
     private void RequestAndStartNextWave()
     {
@@ -219,8 +205,6 @@ public class ArenaModeController : MonoBehaviour
             return;
         }
 
-        // ВАЖНО:
-        // переводим контекст на новую волну только когда реально запускаем её
         currentRunContext.AdvanceToNextWave();
 
         bool started = arenaWaveSpawner.StartWave(wavePlan);
@@ -239,10 +223,6 @@ public class ArenaModeController : MonoBehaviour
             );
         }
     }
-
-    // =========================================================
-    // СОБЫТИЯ ОТ НОВОГО СПАВНЕРА
-    // =========================================================
 
     private void SubscribeSpawnerEvents()
     {
@@ -268,8 +248,6 @@ public class ArenaModeController : MonoBehaviour
     private void HandleWaveCompleted(float waveDuration, bool wasVeryEasy)
     {
         NotifyWaveCompleted(waveDuration, wasVeryEasy);
-
-        // После завершения волны сразу запрашиваем следующую.
         RequestAndStartNextWave();
     }
 
@@ -277,10 +255,6 @@ public class ArenaModeController : MonoBehaviour
     {
         RegisterEnemyKill();
     }
-
-    // =========================================================
-    // СОБЫТИЯ ЗАБЕГА
-    // =========================================================
 
     public void NotifyWaveCompleted(float waveDuration, bool wasVeryEasy)
     {
@@ -313,10 +287,6 @@ public class ArenaModeController : MonoBehaviour
             Debug.Log("ArenaModeController: забег завершён.");
     }
 
-    // =========================================================
-    // ВСПОМОГАТЕЛЬНАЯ ЛОГИКА
-    // =========================================================
-
     private bool ValidateSelectedConfigs()
     {
         if (selectedArenaConfig == null)
@@ -336,6 +306,7 @@ public class ArenaModeController : MonoBehaviour
             Debug.LogWarning("ArenaModeController: не назначен GameModeConfig.");
             return false;
         }
+
         if (selectedModeRulesProfile == null)
         {
             Debug.LogWarning("ArenaModeController: не назначен ArenaModeRulesProfile.");
@@ -404,13 +375,17 @@ public class ArenaModeController : MonoBehaviour
         }
     }
 
+    // ВАЖНО:
+    // теперь метод принимает 4 параметра
     public void SetSelectedConfigs(
         ArenaConfig arenaConfig,
         ArenaDifficultyProfile difficultyProfile,
-        GameModeConfig gameModeConfig)
+        GameModeConfig gameModeConfig,
+        ArenaModeRulesProfile modeRulesProfile)
     {
         selectedArenaConfig = arenaConfig;
         selectedDifficultyProfile = difficultyProfile;
         selectedGameMode = gameModeConfig;
+        selectedModeRulesProfile = modeRulesProfile;
     }
 }

@@ -20,7 +20,7 @@ using System.Collections;
 // 4) показывать результат (ПОБЕДА / ПОРАЖЕНИЕ)
 // 5) уметь перезапускать сцену
 //
-// То есть теперь HUD не работает со старым EnemySpawner,
+// То есть HUD не запускает старый EnemySpawner,
 // а работает через новую систему арены: ArenaModeController.
 public class HUDController : MonoBehaviour
 {
@@ -56,6 +56,7 @@ public class HUDController : MonoBehaviour
     [SerializeField] private GameObject startPanel;
     [SerializeField] private Button startButton;
     [SerializeField] private TMP_Dropdown difficultyDropdown;
+    [SerializeField] private TMP_Dropdown modeDropdown;
 
     // =========================================================
     // НОВАЯ СИСТЕМА АРЕНЫ
@@ -64,42 +65,44 @@ public class HUDController : MonoBehaviour
     [Header("Arena System")]
     [SerializeField] private ArenaModeController arenaModeController;
 
-    [Tooltip("Какая арена будет выбрана сейчас. Пока берём одну базовую арену.")]
+    [Tooltip("Какая арена будет выбрана сейчас.")]
     [SerializeField] private ArenaConfig defaultArenaConfig;
 
-    [Tooltip("Режим Классика. Пока кнопка START запускает именно его.")]
+    [Header("Mode Configs")]
     [SerializeField] private GameModeConfig classicModeConfig;
+    [SerializeField] private GameModeConfig survivalModeConfig;
 
-    [Tooltip("Профиль сложности Easy.")]
+    [Header("Mode Rules Profiles")]
+    [SerializeField] private ArenaModeRulesProfile classicModeRulesProfile;
+    [SerializeField] private ArenaModeRulesProfile survivalModeRulesProfile;
+
+    [Header("Difficulty Profiles")]
     [SerializeField] private ArenaDifficultyProfile easyDifficultyProfile;
-
-    [Tooltip("Профиль сложности Normal.")]
     [SerializeField] private ArenaDifficultyProfile normalDifficultyProfile;
-
-    [Tooltip("Профиль сложности Hard.")]
     [SerializeField] private ArenaDifficultyProfile hardDifficultyProfile;
 
-    // Флаг: показан ли результат
+    // Флаг: показан ли экран результата
     private bool resultShown = false;
 
     private void Awake()
     {
-        // Скрываем результат
+        // Скрываем результат в начале
         if (resultPanel != null)
             resultPanel.SetActive(false);
 
-        // Скрываем сообщение по центру
+        // Сообщение по центру тоже скрываем
         if (centerMessageText != null)
             centerMessageText.gameObject.SetActive(false);
 
-        // Показываем стартовую панель
+        // Стартовую панель показываем
         if (startPanel != null)
             startPanel.SetActive(true);
 
-        // Подписываем кнопки
+        // Кнопка рестарта
         if (restartButton != null)
             restartButton.onClick.AddListener(RestartScene);
 
+        // Кнопка старта
         if (startButton != null)
             startButton.onClick.AddListener(StartGame);
 
@@ -109,7 +112,7 @@ public class HUDController : MonoBehaviour
 
     private void Update()
     {
-        // Разрешаем R только после показа результата
+        // После показа результата разрешаем рестарт по клавише R
         if (resultShown &&
             Keyboard.current != null &&
             Keyboard.current.rKey.wasPressedThisFrame)
@@ -124,7 +127,7 @@ public class HUDController : MonoBehaviour
 
     public void StartGame()
     {
-        // Звук старта
+        // Проигрываем звук старта, если есть
         SFXPlayer.I?.PlayStart();
 
         if (arenaModeController == null)
@@ -139,12 +142,7 @@ public class HUDController : MonoBehaviour
             return;
         }
 
-        if (classicModeConfig == null)
-        {
-            Debug.LogWarning("HUDController: не назначен classicModeConfig.");
-            return;
-        }
-
+        // Определяем выбранную сложность
         ArenaDifficultyProfile selectedDifficulty = ResolveDifficultyFromDropdown();
         if (selectedDifficulty == null)
         {
@@ -152,35 +150,53 @@ public class HUDController : MonoBehaviour
             return;
         }
 
-        // Передаём выбранные конфиги в новую систему арены
+        // Определяем выбранный режим и профиль правил этого режима
+        ResolveModeSelection(
+            out GameModeConfig selectedModeConfig,
+            out ArenaModeRulesProfile selectedRulesProfile
+        );
+
+        if (selectedModeConfig == null)
+        {
+            Debug.LogWarning("HUDController: не удалось определить выбранный GameModeConfig.");
+            return;
+        }
+
+        if (selectedRulesProfile == null)
+        {
+            Debug.LogWarning("HUDController: не удалось определить выбранный ArenaModeRulesProfile.");
+            return;
+        }
+
+        // Передаём ВСЕ выбранные данные в ArenaModeController
         arenaModeController.SetSelectedConfigs(
             defaultArenaConfig,
             selectedDifficulty,
-            classicModeConfig
+            selectedModeConfig,
+            selectedRulesProfile
         );
 
         // Прячем стартовую панель
         if (startPanel != null)
             startPanel.SetActive(false);
 
-        // Возвращаем нормальное течение времени
+        // Возвращаем игре нормальное течение времени
         Time.timeScale = 1f;
 
-        // Запускаем новую систему арены
+        // Запускаем арену
         arenaModeController.BeginArenaRun();
     }
 
-    // Определяем профиль сложности по dropdown.
-    // Пока логика простая:
-    // 0 = Easy
-    // 1 = Normal
-    // 2 = Hard
+    // Определяем сложность по dropdown.
+    // ВАЖНО:
+    // 0 = Лёгкий
+    // 1 = Нормальный
+    // 2 = Сложный
     private ArenaDifficultyProfile ResolveDifficultyFromDropdown()
     {
         if (difficultyDropdown == null)
         {
-            // Если dropdown вдруг не назначен —
-            // для подстраховки берём Normal.
+            // Если dropdown не назначен, по умолчанию берём Normal
             return normalDifficultyProfile;
         }
 
@@ -198,44 +214,87 @@ public class HUDController : MonoBehaviour
         }
     }
 
+    // Определяем режим по dropdown.
+    // ВАЖНО:
+    // 0 = Классика
+    // 1 = Выживание
+    private void ResolveModeSelection(
+        out GameModeConfig selectedModeConfig,
+        out ArenaModeRulesProfile selectedRulesProfile)
+    {
+        // Если modeDropdown не назначен, по умолчанию запускаем классику
+        if (modeDropdown == null)
+        {
+            selectedModeConfig = classicModeConfig;
+            selectedRulesProfile = classicModeRulesProfile;
+            return;
+        }
+
+        switch (modeDropdown.value)
+        {
+            case 1:
+                selectedModeConfig = survivalModeConfig;
+                selectedRulesProfile = survivalModeRulesProfile;
+                break;
+
+            case 0:
+            default:
+                selectedModeConfig = classicModeConfig;
+                selectedRulesProfile = classicModeRulesProfile;
+                break;
+        }
+    }
+
     // =========================================================
     // МЕТОДЫ ОБНОВЛЕНИЯ HUD
     // =========================================================
 
     public void SetHealth(float current, float max)
     {
-        if (healthText == null) return;
+        if (healthText == null)
+            return;
+
         healthText.text = $"HP: {Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
     }
 
     public void SetCoins(int coins)
     {
-        if (coinsText == null) return;
+        if (coinsText == null)
+            return;
+
         coinsText.text = $"Монеты: {coins}";
     }
 
     public void SetWave(int waveNumber, int totalWaves)
     {
-        if (waveText == null) return;
+        if (waveText == null)
+            return;
+
         waveText.text = $"Волна: {waveNumber}/{totalWaves}";
     }
 
     public void SetWaveProgress(int killedThisWave, int needThisWave)
     {
-        if (waveProgressText == null) return;
+        if (waveProgressText == null)
+            return;
+
         waveProgressText.text = $"Врагов: {killedThisWave}/{needThisWave}";
     }
 
     public void ShowCenterMessage(string msg)
     {
-        if (centerMessageText == null) return;
+        if (centerMessageText == null)
+            return;
+
         centerMessageText.gameObject.SetActive(true);
         centerMessageText.text = msg;
     }
 
     public void HideCenterMessage()
     {
-        if (centerMessageText == null) return;
+        if (centerMessageText == null)
+            return;
+
         centerMessageText.gameObject.SetActive(false);
     }
 
@@ -262,7 +321,7 @@ public class HUDController : MonoBehaviour
         // Ставим игру на паузу
         Time.timeScale = 0f;
 
-        // Останавливаем новый забег арены
+        // Останавливаем текущий забег
         arenaModeController?.StopArenaRun();
 
         if (resultPanel != null)
@@ -278,30 +337,29 @@ public class HUDController : MonoBehaviour
             resultStatsText.text = BuildResultStatsText();
     }
 
-    // Собираем текст статистики из новой системы арены.
+    // Собираем текст статистики из новой системы арены
     private string BuildResultStatsText()
     {
         if (arenaModeController == null || arenaModeController.CurrentRunContext == null)
             return "Статистика недоступна";
 
         ArenaRunContext runContext = arenaModeController.CurrentRunContext;
-
         int completedWaves = runContext.CompletedWaves;
 
-        // Если это бесконечный режим — показываем просто число пройденных волн.
+        // Для бесконечного режима показываем только число пройденных волн
         if (runContext.CurrentGameMode != null && runContext.CurrentGameMode.isEndless)
         {
             return $"Пройдено волн: {completedWaves}";
         }
 
-        // Если профиль сложности переопределяет общее число волн — используем его.
+        // Если сложность переопределяет число волн
         if (runContext.CurrentDifficultyProfile != null &&
             runContext.CurrentDifficultyProfile.overrideTotalWaves)
         {
             return $"Пройдено волн: {completedWaves}/{runContext.CurrentDifficultyProfile.totalWaves}";
         }
 
-        // Иначе используем лимит режима.
+        // Иначе используем лимит режима
         if (runContext.CurrentGameMode != null)
         {
             return $"Пройдено волн: {completedWaves}/{runContext.CurrentGameMode.maxWaves}";
@@ -322,8 +380,12 @@ public class HUDController : MonoBehaviour
 
     private IEnumerator RestartAfterSound()
     {
+        // Перед перезагрузкой возвращаем время
         Time.timeScale = 1f;
+
+        // Небольшая пауза, чтобы звук успел начаться
         yield return new WaitForSecondsRealtime(0.15f);
+
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
