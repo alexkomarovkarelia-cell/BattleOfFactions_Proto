@@ -958,6 +958,8 @@ MonoBehaviour:
   enemyPrefabEntries:
   - enemyTypeId: melee_basic
     enemyPrefab: {fileID: 5968343151138241972, guid: 1e13881e369b7594bb74d208a5187268, type: 3}
+  - enemyTypeId: melee_fast
+    enemyPrefab: {fileID: 5968343151138241972, guid: 83ee98d81e451dd4fab3300a10731a1f, type: 3}
   maxAliveEnemiesAtOnce: 4
   showDebugLogs: 1
 --- !u!1 &300922295
@@ -4956,6 +4958,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16fc3f03348d2f64ab31aff1c03dcbf4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WavePlanBuilder
+  enemyPoolResolver: {fileID: 2045860724}
   useRandomSpawnZones: 1
   defaultSpawnInterval: 0.5
   fallbackSpawnZoneCount: 4
@@ -6063,6 +6066,7 @@ Transform:
   - {fileID: 991108455}
   - {fileID: 278672878}
   - {fileID: 25980001}
+  - {fileID: 2045860723}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1278868931
@@ -8766,6 +8770,55 @@ Transform:
   - {fileID: 7139519880077928414}
   m_Father: {fileID: 10945072}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2045860722
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2045860723}
+  - component: {fileID: 2045860724}
+  m_Layer: 0
+  m_Name: EnemyPoolResolver
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2045860723
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2045860722}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1273133675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2045860724
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2045860722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c12ee935deb07e4ebc436c7be0afdd3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyPoolResolver
+  enemyProfiles:
+  - {fileID: 11400000, guid: 325ea88ca5c25a6439c9067ac9c4571e, type: 2}
+  - {fileID: 11400000, guid: 5fddb8229d15d7543b336770212e48fb, type: 2}
+  fallbackEnemyTypeId: melee_basic
+  showDebugLogs: 0
 --- !u!1 &2096017742
 GameObject:
   m_ObjectHideFlags: 0

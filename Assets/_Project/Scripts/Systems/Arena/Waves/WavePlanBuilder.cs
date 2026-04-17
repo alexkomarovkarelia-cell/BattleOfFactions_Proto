@@ -4,22 +4,22 @@ using UnityEngine;
 // WavePlanBuilder
 // Это планировщик конкретной волны.
 //
+// Что он делает:
+// 1) получает решение директора
+// 2) выбирает активные зоны на волну
+// 3) выбирает типы врагов через EnemyPoolResolver
+// 4) собирает конкретный WaveExecutionPlan
+//
 // ВАЖНО:
-// Теперь он не просто берёт "первые N зон",
-// а на КАЖДУЮ волну случайно выбирает набор активных зон.
-//
-// Пример:
-// если доступно 4 зоны, а активных нужно 2,
-// то волна может выбрать:
-// - 0 и 3
-// - 1 и 2
-// - 0 и 2
-// и т.д.
-//
-// После этого команды спавна создаются только внутри выбранного набора.
+// - он не спавнит
+// - он не считает режим целиком
+// - он не решает, когда закончить забег
 [DisallowMultipleComponent]
 public class WavePlanBuilder : MonoBehaviour
 {
+    [Header("Исполнители")]
+    [SerializeField] private EnemyPoolResolver enemyPoolResolver;
+
     [Header("Общая логика планирования")]
     [SerializeField] private bool useRandomSpawnZones = true;
     [SerializeField] private float defaultSpawnInterval = 0.5f;
@@ -36,8 +36,6 @@ public class WavePlanBuilder : MonoBehaviour
     [Header("Отладка")]
     [SerializeField] private bool showDebugLogs = true;
 
-    // Запоминаем последнюю зону спавна,
-    // чтобы внутри волны не бить подряд в одну и ту же.
     private int lastUsedSpawnZoneIndex = -1;
 
     public bool TryBuildWavePlan(
@@ -90,44 +88,41 @@ public class WavePlanBuilder : MonoBehaviour
             Mathf.Max(1, availableZoneCount)
         );
 
-        // =====================================================
-        // НОВОЕ:
-        // Выбираем активные зоны СЛУЧАЙНО ДЛЯ ЭТОЙ ВОЛНЫ
-        // =====================================================
+        // Случайный набор активных зон на эту волну
         wavePlan.activeZoneIndices = BuildRandomActiveZoneSet(
             availableZoneCount,
             activeZoneCount
         );
 
-        // На всякий случай: если что-то пошло не так
         if (wavePlan.activeZoneIndices == null || wavePlan.activeZoneIndices.Count == 0)
         {
             wavePlan = WaveExecutionPlan.CreateEmpty("Failed to build active zone set");
             return false;
         }
 
-        // Сбрасываем lastUsed, чтобы каждая новая волна начиналась чисто.
+        // Каждая новая волна начинает с чистого состояния анти-повтора
         lastUsedSpawnZoneIndex = -1;
 
-        // Создаём конкретные команды спавна.
+        // Собираем команды спавна
         for (int i = 0; i < totalSpawnCount; i++)
         {
             int spawnZoneIndex = ResolveSpawnZoneIndexFromActiveSet(wavePlan.activeZoneIndices);
 
+            string enemyTypeId = ResolveEnemyTypeIdForWave(runContext, directorDecision.targetWaveNumber);
+
             WaveSpawnCommand command = new WaveSpawnCommand
             {
-                enemyTypeId = defaultBasicEnemyTypeId,
+                enemyTypeId = enemyTypeId,
                 spawnZoneIndex = spawnZoneIndex,
                 spawnDelay = i * defaultSpawnInterval,
                 isElite = false,
-                debugNote = $"Base spawn #{i + 1}"
+                debugNote = $"Spawn #{i + 1}"
             };
 
             wavePlan.spawnCommands.Add(command);
         }
 
-        // Если директор попросил раннего элитника —
-        // заменяем одну команду на элитную.
+        // Ранний элитник пока просто заменяет одну команду на elite type id
         if (directorDecision.requestEarlyElite &&
             convertOneSpawnToElite &&
             wavePlan.spawnCommands.Count > 0)
@@ -165,9 +160,19 @@ public class WavePlanBuilder : MonoBehaviour
         return wavePlan.IsValid();
     }
 
-    // =====================================================
-    // Собираем СЛУЧАЙНЫЙ набор активных зон на волну
-    // =====================================================
+    private string ResolveEnemyTypeIdForWave(ArenaRunContext runContext, int waveNumber)
+    {
+        if (enemyPoolResolver == null)
+            return defaultBasicEnemyTypeId;
+
+        string resolvedEnemyTypeId = enemyPoolResolver.GetRandomEnemyTypeIdForWave(runContext, waveNumber);
+
+        if (string.IsNullOrWhiteSpace(resolvedEnemyTypeId))
+            return defaultBasicEnemyTypeId;
+
+        return resolvedEnemyTypeId;
+    }
+
     private List<int> BuildRandomActiveZoneSet(int availableZoneCount, int activeZoneCount)
     {
         List<int> allZoneIndices = new List<int>();
@@ -177,10 +182,8 @@ public class WavePlanBuilder : MonoBehaviour
             allZoneIndices.Add(i);
         }
 
-        // Перемешиваем список
         ShuffleList(allZoneIndices);
 
-        // Берём только нужное количество активных зон
         List<int> result = new List<int>();
 
         for (int i = 0; i < activeZoneCount && i < allZoneIndices.Count; i++)
@@ -191,9 +194,6 @@ public class WavePlanBuilder : MonoBehaviour
         return result;
     }
 
-    // =====================================================
-    // Выбираем одну зону из уже активного набора этой волны
-    // =====================================================
     private int ResolveSpawnZoneIndexFromActiveSet(List<int> activeZoneIndices)
     {
         if (activeZoneIndices == null || activeZoneIndices.Count == 0)
@@ -210,16 +210,12 @@ public class WavePlanBuilder : MonoBehaviour
                 activeZoneIndices.Count > 1 &&
                 resultZone == lastUsedSpawnZoneIndex)
             {
-                // Очень простая защита от повтора:
-                // сдвигаемся на следующую зону в списке.
                 int shiftedLocalIndex = (randomLocalIndex + 1) % activeZoneIndices.Count;
                 resultZone = activeZoneIndices[shiftedLocalIndex];
             }
         }
         else
         {
-            // Если случайность выключена —
-            // идём по активным зонам по кругу.
             int startIndex = 0;
 
             if (lastUsedSpawnZoneIndex != -1)
@@ -238,8 +234,6 @@ public class WavePlanBuilder : MonoBehaviour
 
     private int ResolveAvailableSpawnZoneCount(ArenaRunContext runContext)
     {
-        // Пока MVP:
-        // используем запасное число зон.
         return Mathf.Max(1, fallbackSpawnZoneCount);
     }
 
