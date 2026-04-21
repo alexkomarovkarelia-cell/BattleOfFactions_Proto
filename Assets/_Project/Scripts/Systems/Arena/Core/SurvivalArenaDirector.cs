@@ -37,12 +37,27 @@ public class SurvivalArenaDirector : MonoBehaviour, IArenaDirector
     [SerializeField] private int minimumWaveForEarlyElite = 6;
     [SerializeField] private int minimumWaveForEnvironmentIntervention = 8;
 
+    [Header("Модификаторы бюджета")]
+    [SerializeField] private ArenaBudgetModifierPipeline budgetModifierPipeline;
+
     [Header("Отладка")]
     [SerializeField] private bool showDebugLogs = true;
+
 
     private ArenaRunContext runContext;
 
     public string DirectorModeId => directorModeId;
+
+    private int ApplyBudgetModifiers(int waveNumber, int baseBudget)
+    {
+        if (budgetModifierPipeline == null)
+            return Mathf.Max(1, baseBudget);
+
+        return Mathf.Max(
+            1,
+            budgetModifierPipeline.ApplyBudgetModifiers(runContext, waveNumber, baseBudget)
+        );
+    }
 
     // =========================================================
     // ИНИЦИАЛИЗАЦИЯ
@@ -191,6 +206,7 @@ public class SurvivalArenaDirector : MonoBehaviour, IArenaDirector
             int warmupBudget = rules.warmupStartBudget +
                                Mathf.Max(0, waveNumber - 1) * rules.warmupBudgetGrowthPerWave;
 
+            warmupBudget = ApplyBudgetModifiers(waveNumber, warmupBudget);
             return Mathf.Max(1, warmupBudget);
         }
 
@@ -212,6 +228,7 @@ public class SurvivalArenaDirector : MonoBehaviour, IArenaDirector
             budget = startBudget;
         }
 
+        budget = ApplyBudgetModifiers(waveNumber, budget);
         return Mathf.Max(1, budget);
     }
 

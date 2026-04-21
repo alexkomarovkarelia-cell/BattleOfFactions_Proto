@@ -8,17 +8,19 @@ using UnityEngine;
 // 1) получает решение директора
 // 2) выбирает активные зоны на волну
 // 3) выбирает типы врагов через EnemyPoolResolver
-// 4) собирает конкретный WaveExecutionPlan
+// 4) собирает базовый WaveExecutionPlan
+// 5) пропускает план через pipeline модификаторов плана спавна
 //
 // ВАЖНО:
 // - он не спавнит
 // - он не считает режим целиком
-// - он не решает, когда закончить забег
+// - он не управляет концом забега
 [DisallowMultipleComponent]
 public class WavePlanBuilder : MonoBehaviour
 {
     [Header("Исполнители")]
     [SerializeField] private EnemyPoolResolver enemyPoolResolver;
+    [SerializeField] private ArenaSpawnPlanModifierPipeline spawnPlanModifierPipeline;
 
     [Header("Общая логика планирования")]
     [SerializeField] private bool useRandomSpawnZones = true;
@@ -100,14 +102,13 @@ public class WavePlanBuilder : MonoBehaviour
             return false;
         }
 
-        // Каждая новая волна начинает с чистого состояния анти-повтора
+        // Каждая новая волна начинается с чистого состояния анти-повтора
         lastUsedSpawnZoneIndex = -1;
 
-        // Собираем команды спавна
+        // Собираем базовые команды спавна
         for (int i = 0; i < totalSpawnCount; i++)
         {
             int spawnZoneIndex = ResolveSpawnZoneIndexFromActiveSet(wavePlan.activeZoneIndices);
-
             string enemyTypeId = ResolveEnemyTypeIdForWave(runContext, directorDecision.targetWaveNumber);
 
             WaveSpawnCommand command = new WaveSpawnCommand
@@ -136,6 +137,17 @@ public class WavePlanBuilder : MonoBehaviour
             wavePlan.spawnCommands[eliteIndex].enemyTypeId = defaultEliteEnemyTypeId;
             wavePlan.spawnCommands[eliteIndex].isElite = true;
             wavePlan.spawnCommands[eliteIndex].debugNote = "Converted to early elite";
+        }
+
+        // ВАЖНО:
+        // Теперь даём отдельному pipeline возможность изменить базовый план.
+        if (spawnPlanModifierPipeline != null)
+        {
+            spawnPlanModifierPipeline.ApplySpawnPlanModifiers(
+                runContext,
+                directorDecision,
+                wavePlan
+            );
         }
 
         wavePlan.debugSummary = BuildDebugSummary(

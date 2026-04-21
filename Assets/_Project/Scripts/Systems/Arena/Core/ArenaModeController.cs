@@ -45,6 +45,10 @@ public class ArenaModeController : MonoBehaviour
     [SerializeField] private bool autoTickRunTime = true;
     [SerializeField] private bool showDebugLogs = true;
 
+    [SerializeField] private WavePerformanceTracker wavePerformanceTracker;
+
+    [SerializeField] private ArenaRunSummaryBuilder arenaRunSummaryBuilder;
+
     private IArenaDirector classicDirector;
     private IArenaDirector survivalDirector;
     private IArenaDirector constructorDirector;
@@ -52,6 +56,9 @@ public class ArenaModeController : MonoBehaviour
 
     private IArenaDirector activeDirector;
     private ArenaRunContext currentRunContext;
+
+    private ArenaRunSummary lastRunSummary;
+    public ArenaRunSummary LastRunSummary => lastRunSummary;
 
     public ArenaRunContext CurrentRunContext => currentRunContext;
     public IArenaDirector ActiveDirector => activeDirector;
@@ -140,6 +147,8 @@ public class ArenaModeController : MonoBehaviour
             Debug.LogWarning("ArenaModeController: не найден директор для выбранного режима.");
             return false;
         }
+
+        lastRunSummary = null;
 
         // ВАЖНО:
         // создаём новый контекст перед стартом забега
@@ -261,7 +270,22 @@ public class ArenaModeController : MonoBehaviour
         if (currentRunContext == null)
             return;
 
-        currentRunContext.MarkWaveCompleted(waveDuration, wasVeryEasy);
+        if (wavePerformanceTracker != null)
+        {
+            WavePerformanceResult result = wavePerformanceTracker.BuildResult(
+                currentRunContext.CurrentWave,
+                waveDuration,
+                wasVeryEasy
+            );
+
+            currentRunContext.RegisterWavePerformance(result);
+        }
+        else
+        {
+            // Если трекер не назначен — используем старую логику как запасной вариант
+            currentRunContext.MarkWaveCompleted(waveDuration, wasVeryEasy);
+        }
+
         activeDirector?.NotifyWaveCompleted(waveDuration, wasVeryEasy);
     }
 
@@ -279,6 +303,12 @@ public class ArenaModeController : MonoBehaviour
         if (currentRunContext != null && !currentRunContext.IsRunFinished)
         {
             currentRunContext.FinishRun();
+        }
+
+        // Собираем итог забега
+        if (arenaRunSummaryBuilder != null && currentRunContext != null)
+        {
+            lastRunSummary = arenaRunSummaryBuilder.BuildSummary(currentRunContext);
         }
 
         activeDirector?.FinishRun();

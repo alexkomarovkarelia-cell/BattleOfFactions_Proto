@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Melee Basic
   developerNotes: 
   unlockWave: 1
-  retireWave: 0
+  retireWave: 6
   spawnWeight: 10
   allowInClassic: 1
   allowInSurvival: 1

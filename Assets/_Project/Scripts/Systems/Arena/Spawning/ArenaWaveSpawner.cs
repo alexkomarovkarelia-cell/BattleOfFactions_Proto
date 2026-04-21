@@ -23,6 +23,11 @@ public class ArenaWaveSpawner : MonoBehaviour
     [Header("Отладка")]
     [SerializeField] private bool showDebugLogs = true;
 
+    [Header("Безопасная дистанция от игрока")]
+    [SerializeField] private Transform playerTransform;
+    [SerializeField] private float minSpawnDistanceFromPlayer = 10f;
+    [SerializeField] private int maxSpawnPositionAttempts = 8;
+
     public event Action EnemyKilled;
     public event Action<float, bool> WaveCompleted;
 
@@ -174,6 +179,40 @@ public class ArenaWaveSpawner : MonoBehaviour
         }
     }
 
+    private Vector3 ResolveSpawnPosition(SpawnZone zone)
+    {
+        if (zone == null)
+            return transform.position;
+
+        // Если игрок не назначен — работаем как раньше.
+        if (playerTransform == null)
+            return zone.GetRandomPointInside();
+
+        Vector3 bestPosition = zone.GetRandomPointInside();
+        float bestDistance = Vector3.Distance(bestPosition, playerTransform.position);
+
+        for (int i = 0; i < maxSpawnPositionAttempts; i++)
+        {
+            Vector3 candidate = zone.GetRandomPointInside();
+            float distanceToPlayer = Vector3.Distance(candidate, playerTransform.position);
+
+            // Если нашли точку на безопасной дистанции — сразу берём её.
+            if (distanceToPlayer >= minSpawnDistanceFromPlayer)
+                return candidate;
+
+            // Иначе просто запоминаем лучшую из плохих,
+            // чтобы в крайнем случае взять самую далёкую.
+            if (distanceToPlayer > bestDistance)
+            {
+                bestDistance = distanceToPlayer;
+                bestPosition = candidate;
+            }
+        }
+
+        // Если идеальную не нашли — берём самую далёкую найденную.
+        return bestPosition;
+    }
+
     private void ExecuteSpawnCommand(WaveSpawnCommand command)
     {
         if (command == null)
@@ -201,7 +240,7 @@ public class ArenaWaveSpawner : MonoBehaviour
             return;
         }
 
-        Vector3 spawnPosition = zone.GetRandomPointInside();
+        Vector3 spawnPosition = ResolveSpawnPosition(zone);
 
         GameObject spawnedObject = Instantiate(
             prefabEntry.enemyPrefab,

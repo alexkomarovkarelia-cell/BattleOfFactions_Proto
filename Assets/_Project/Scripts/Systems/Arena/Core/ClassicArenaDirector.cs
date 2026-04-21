@@ -45,6 +45,9 @@ public class ClassicArenaDirector : MonoBehaviour, IArenaDirector
     [SerializeField] private int minimumWaveForEarlyElite = 5;
     [SerializeField] private int minimumWaveForEnvironmentIntervention = 7;
 
+    [Header("Модификаторы бюджета")]
+    [SerializeField] private ArenaBudgetModifierPipeline budgetModifierPipeline;
+
     [Header("Отладка")]
     [SerializeField] private bool showDebugLogs = true;
 
@@ -54,9 +57,23 @@ public class ClassicArenaDirector : MonoBehaviour, IArenaDirector
     // Этот директор обслуживает только classic.
     public string DirectorModeId => directorModeId;
 
+
+    private int ApplyBudgetModifiers(int waveNumber, int baseBudget)
+    {
+        if (budgetModifierPipeline == null)
+            return Mathf.Max(1, baseBudget);
+
+        return Mathf.Max(
+            1,
+            budgetModifierPipeline.ApplyBudgetModifiers(runContext, waveNumber, baseBudget)
+        );
+    }
+
     // =========================================================
     // ИНИЦИАЛИЗАЦИЯ
     // =========================================================
+
+
 
     public void Initialize(ArenaRunContext runContext)
     {
@@ -237,6 +254,7 @@ public class ClassicArenaDirector : MonoBehaviour, IArenaDirector
             int warmupBudget = rules.warmupStartBudget +
                                Mathf.Max(0, waveNumber - 1) * rules.warmupBudgetGrowthPerWave;
 
+            warmupBudget = ApplyBudgetModifiers(waveNumber, warmupBudget);
             return Mathf.Max(1, warmupBudget);
         }
 
@@ -252,6 +270,7 @@ public class ClassicArenaDirector : MonoBehaviour, IArenaDirector
             budget = startBudget;
         }
 
+        budget = ApplyBudgetModifiers(waveNumber, budget);
         return Mathf.Max(1, budget);
     }
 

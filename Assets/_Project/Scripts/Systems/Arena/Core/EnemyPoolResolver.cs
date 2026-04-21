@@ -12,12 +12,16 @@ using UnityEngine;
 // - это не директор режима
 // - это не планировщик волны
 //
-// Он просто работает как "слой выбора доступных врагов".
+// Он работает как слой выбора доступных врагов.
+// Теперь у него есть ещё и pipeline модификаторов пула.
 [DisallowMultipleComponent]
 public class EnemyPoolResolver : MonoBehaviour
 {
     [Header("Профили врагов для волн")]
     [SerializeField] private List<ArenaWaveEnemyProfile> enemyProfiles = new List<ArenaWaveEnemyProfile>();
+
+    [Header("Модификаторы пула")]
+    [SerializeField] private ArenaEnemyPoolModifierPipeline enemyPoolModifierPipeline;
 
     [Header("Запасной тип врага")]
     [SerializeField] private string fallbackEnemyTypeId = "melee_basic";
@@ -30,9 +34,15 @@ public class EnemyPoolResolver : MonoBehaviour
         if (runContext == null)
             return fallbackEnemyTypeId;
 
-        List<ArenaWaveEnemyProfile> availableProfiles = GetAvailableProfiles(runContext, waveNumber);
+        List<ArenaEnemyPoolCandidate> candidates = BuildAvailableCandidates(runContext, waveNumber);
 
-        if (availableProfiles.Count == 0)
+        // Пропускаем через pipeline модификаторов
+        if (enemyPoolModifierPipeline != null)
+        {
+            enemyPoolModifierPipeline.ApplyPoolModifiers(runContext, waveNumber, candidates);
+        }
+
+        if (candidates == null || candidates.Count == 0)
         {
             if (showDebugLogs)
             {
@@ -45,25 +55,25 @@ public class EnemyPoolResolver : MonoBehaviour
             return fallbackEnemyTypeId;
         }
 
-        ArenaWaveEnemyProfile selectedProfile = PickWeightedRandomProfile(availableProfiles);
+        ArenaEnemyPoolCandidate selectedCandidate = PickWeightedRandomCandidate(candidates);
 
-        if (selectedProfile == null || string.IsNullOrWhiteSpace(selectedProfile.enemyTypeId))
+        if (selectedCandidate == null || string.IsNullOrWhiteSpace(selectedCandidate.enemyTypeId))
             return fallbackEnemyTypeId;
 
         if (showDebugLogs)
         {
             Debug.Log(
-                $"EnemyPoolResolver: selected enemyTypeId = {selectedProfile.enemyTypeId} " +
+                $"EnemyPoolResolver: selected enemyTypeId = {selectedCandidate.enemyTypeId} " +
                 $"for wave {waveNumber}"
             );
         }
 
-        return selectedProfile.enemyTypeId;
+        return selectedCandidate.enemyTypeId;
     }
 
-    private List<ArenaWaveEnemyProfile> GetAvailableProfiles(ArenaRunContext runContext, int waveNumber)
+    private List<ArenaEnemyPoolCandidate> BuildAvailableCandidates(ArenaRunContext runContext, int waveNumber)
     {
-        List<ArenaWaveEnemyProfile> result = new List<ArenaWaveEnemyProfile>();
+        List<ArenaEnemyPoolCandidate> result = new List<ArenaEnemyPoolCandidate>();
 
         for (int i = 0; i < enemyProfiles.Count; i++)
         {
@@ -72,36 +82,60 @@ public class EnemyPoolResolver : MonoBehaviour
             if (profile == null)
                 continue;
 
-            if (profile.CanAppear(runContext.CurrentGameMode, waveNumber))
-                result.Add(profile);
+            if (!profile.CanAppear(runContext.CurrentGameMode, waveNumber))
+                continue;
+
+            ArenaEnemyPoolCandidate candidate = new ArenaEnemyPoolCandidate
+            {
+                sourceProfile = profile,
+                enemyTypeId = profile.enemyTypeId,
+                effectiveWeight = Mathf.Max(1, profile.spawnWeight),
+                isEnabled = true,
+                debugNote = $"Base candidate from profile {profile.name}"
+            };
+
+            result.Add(candidate);
         }
 
         return result;
     }
 
-    private ArenaWaveEnemyProfile PickWeightedRandomProfile(List<ArenaWaveEnemyProfile> availableProfiles)
+    private ArenaEnemyPoolCandidate PickWeightedRandomCandidate(List<ArenaEnemyPoolCandidate> candidates)
     {
-        if (availableProfiles == null || availableProfiles.Count == 0)
+        if (candidates == null || candidates.Count == 0)
             return null;
 
         int totalWeight = 0;
 
-        for (int i = 0; i < availableProfiles.Count; i++)
+        for (int i = 0; i < candidates.Count; i++)
         {
-            totalWeight += Mathf.Max(1, availableProfiles[i].spawnWeight);
+            ArenaEnemyPoolCandidate candidate = candidates[i];
+
+            if (candidate == null || !candidate.isEnabled)
+                continue;
+
+            totalWeight += Mathf.Max(1, candidate.effectiveWeight);
         }
+
+        if (totalWeight <= 0)
+            return null;
 
         int roll = Random.Range(0, totalWeight);
         int currentWeight = 0;
 
-        for (int i = 0; i < availableProfiles.Count; i++)
+        for (int i = 0; i < candidates.Count; i++)
         {
-            currentWeight += Mathf.Max(1, availableProfiles[i].spawnWeight);
+            ArenaEnemyPoolCandidate candidate = candidates[i];
+
+            if (candidate == null || !candidate.isEnabled)
+                continue;
+
+            currentWeight += Mathf.Max(1, candidate.effectiveWeight);
 
             if (roll < currentWeight)
-                return availableProfiles[i];
+                return candidate;
         }
 
-        return availableProfiles[availableProfiles.Count - 1];
+        return candidates[candidates.Count - 1];
     }
 }

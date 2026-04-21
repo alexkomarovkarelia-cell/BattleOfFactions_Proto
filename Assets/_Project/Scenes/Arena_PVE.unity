@@ -194,6 +194,7 @@ MonoBehaviour:
   wavesPerExtraSpawnZone: 3
   minimumWaveForEarlyElite: 6
   minimumWaveForEnvironmentIntervention: 8
+  budgetModifierPipeline: {fileID: 0}
   showDebugLogs: 1
 --- !u!4 &25980001
 Transform:
@@ -644,6 +645,51 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 18, y: 2, z: 18}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &143602730
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 143602732}
+  - component: {fileID: 143602731}
+  m_Layer: 0
+  m_Name: ArenaRunSummaryBuilder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &143602731
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 143602730}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c62d8b315ce1684181bccbd9fe4afb6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ArenaRunSummaryBuilder
+  showDebugLogs: 1
+--- !u!4 &143602732
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 143602730}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1273133675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &233064693
 GameObject:
   m_ObjectHideFlags: 0
@@ -961,6 +1007,55 @@ MonoBehaviour:
   - enemyTypeId: melee_fast
     enemyPrefab: {fileID: 5968343151138241972, guid: 83ee98d81e451dd4fab3300a10731a1f, type: 3}
   maxAliveEnemiesAtOnce: 4
+  showDebugLogs: 1
+  playerTransform: {fileID: 388940781}
+  minSpawnDistanceFromPlayer: 10
+  maxSpawnPositionAttempts: 8
+--- !u!1 &288874301
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 288874302}
+  - component: {fileID: 288874303}
+  m_Layer: 0
+  m_Name: ArenaEnemyPoolModifiers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &288874302
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288874301}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1273133675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &288874303
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 288874301}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5412c7a7f10973045b45055c0dd1318c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ArenaEnemyPoolModifierPipeline
+  modifierBehaviours: []
   showDebugLogs: 1
 --- !u!1 &300922295
 GameObject:
@@ -3586,6 +3681,8 @@ MonoBehaviour:
   pvpDirectorBehaviour: {fileID: 0}
   autoTickRunTime: 1
   showDebugLogs: 1
+  wavePerformanceTracker: {fileID: 1656332872}
+  arenaRunSummaryBuilder: {fileID: 143602731}
 --- !u!1 &666105878
 GameObject:
   m_ObjectHideFlags: 0
@@ -4914,6 +5011,52 @@ RectTransform:
   m_AnchoredPosition: {x: 5, y: -0.5}
   m_SizeDelta: {x: -30, y: -3}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &981742601
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 981742602}
+  - component: {fileID: 981742603}
+  m_Layer: 0
+  m_Name: ArenaSpawnPlanModifiers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &981742602
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 981742601}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1273133675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &981742603
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 981742601}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15eccfb228bb707478471ac1c4c06a66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ArenaSpawnPlanModifierPipeline
+  modifierBehaviours: []
+  showDebugLogs: 1
 --- !u!1 &991108454
 GameObject:
   m_ObjectHideFlags: 0
@@ -4959,6 +5102,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WavePlanBuilder
   enemyPoolResolver: {fileID: 2045860724}
+  spawnPlanModifierPipeline: {fileID: 981742603}
   useRandomSpawnZones: 1
   defaultSpawnInterval: 0.5
   fallbackSpawnZoneCount: 4
@@ -6067,6 +6211,10 @@ Transform:
   - {fileID: 278672878}
   - {fileID: 25980001}
   - {fileID: 2045860723}
+  - {fileID: 1656332873}
+  - {fileID: 143602732}
+  - {fileID: 288874302}
+  - {fileID: 981742602}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1278868931
@@ -7408,6 +7556,51 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!1 &1656332871
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1656332873}
+  - component: {fileID: 1656332872}
+  m_Layer: 0
+  m_Name: WavePerformanceTracker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1656332872
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656332871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9672cc254486ec147afe39de638d2eaf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WavePerformanceTracker
+  showDebugLogs: 1
+--- !u!4 &1656332873
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656332871}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1273133675}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1708627237
 GameObject:
   m_ObjectHideFlags: 0
@@ -8264,6 +8457,7 @@ MonoBehaviour:
   wavesPerExtraSpawnZone: 5
   minimumWaveForEarlyElite: 5
   minimumWaveForEnvironmentIntervention: 7
+  budgetModifierPipeline: {fileID: 0}
   showDebugLogs: 1
 --- !u!1 &1910103050
 GameObject:
@@ -8817,6 +9011,7 @@ MonoBehaviour:
   enemyProfiles:
   - {fileID: 11400000, guid: 325ea88ca5c25a6439c9067ac9c4571e, type: 2}
   - {fileID: 11400000, guid: 5fddb8229d15d7543b336770212e48fb, type: 2}
+  enemyPoolModifierPipeline: {fileID: 288874303}
   fallbackEnemyTypeId: melee_basic
   showDebugLogs: 0
 --- !u!1 &2096017742

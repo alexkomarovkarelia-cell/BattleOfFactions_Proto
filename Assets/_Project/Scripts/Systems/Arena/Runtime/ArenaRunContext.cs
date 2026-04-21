@@ -69,6 +69,9 @@ public class ArenaRunContext
     // Потом можно заменить на более богатую оценку.
     public bool LastWaveWasVeryEasy { get; private set; }
 
+    public System.Collections.Generic.List<WavePerformanceResult> WaveHistory { get; private set; }
+    = new System.Collections.Generic.List<WavePerformanceResult>();
+
     // =========================================================
     // ЗАПУСК / СБРОС / ОБНОВЛЕНИЕ
     // =========================================================
@@ -94,6 +97,7 @@ public class ArenaRunContext
         CompletedWaves = 0;
         LastWaveDuration = 0f;
         LastWaveWasVeryEasy = false;
+        WaveHistory = new System.Collections.Generic.List<WavePerformanceResult>();
     }
 
     // Полный ручной сброс контекста.
@@ -126,6 +130,23 @@ public class ArenaRunContext
             return;
 
         RunTime += deltaTime;
+    }
+    public void RegisterWavePerformance(WavePerformanceResult result)
+    {
+        if (!IsRunActive || IsRunFinished)
+            return;
+
+        if (result == null)
+            return;
+
+        if (WaveHistory == null)
+            WaveHistory = new System.Collections.Generic.List<WavePerformanceResult>();
+
+        WaveHistory.Add(result);
+
+        CompletedWaves = WaveHistory.Count;
+        LastWaveDuration = Mathf.Max(0f, result.durationSeconds);
+        LastWaveWasVeryEasy = result.wasVeryEasy;
     }
 
     // Переход к следующей волне.

@@ -340,26 +340,50 @@ public class HUDController : MonoBehaviour
     // Собираем текст статистики из новой системы арены
     private string BuildResultStatsText()
     {
-        if (arenaModeController == null || arenaModeController.CurrentRunContext == null)
+        if (arenaModeController == null)
+            return "Статистика недоступна";
+
+        // 1. Сначала пробуем взять готовый summary
+        ArenaRunSummary summary = arenaModeController.LastRunSummary;
+
+        if (summary != null)
+        {
+            string wavesText;
+
+            if (summary.isEndlessMode)
+                wavesText = $"Пройдено волн: {summary.completedWaves}";
+            else if (summary.targetWaves > 0)
+                wavesText = $"Пройдено волн: {summary.completedWaves}/{summary.targetWaves}";
+            else
+                wavesText = $"Пройдено волн: {summary.completedWaves}";
+
+            return
+                $"{wavesText}\n" +
+                $"Лучшее время волны: {summary.bestWaveTimeSeconds:F2} сек\n" +
+                $"Худшее время волны: {summary.worstWaveTimeSeconds:F2} сек\n" +
+                $"Среднее время волны: {summary.averageWaveTimeSeconds:F2} сек\n" +
+                $"Лёгких волн: {summary.veryEasyWaveCount}";
+        }
+
+        // 2. Если summary по какой-то причине ещё нет —
+        // используем старую запасную логику
+        if (arenaModeController.CurrentRunContext == null)
             return "Статистика недоступна";
 
         ArenaRunContext runContext = arenaModeController.CurrentRunContext;
         int completedWaves = runContext.CompletedWaves;
 
-        // Для бесконечного режима показываем только число пройденных волн
         if (runContext.CurrentGameMode != null && runContext.CurrentGameMode.isEndless)
         {
             return $"Пройдено волн: {completedWaves}";
         }
 
-        // Если сложность переопределяет число волн
         if (runContext.CurrentDifficultyProfile != null &&
             runContext.CurrentDifficultyProfile.overrideTotalWaves)
         {
             return $"Пройдено волн: {completedWaves}/{runContext.CurrentDifficultyProfile.totalWaves}";
         }
 
-        // Иначе используем лимит режима
         if (runContext.CurrentGameMode != null)
         {
             return $"Пройдено волн: {completedWaves}/{runContext.CurrentGameMode.maxWaves}";

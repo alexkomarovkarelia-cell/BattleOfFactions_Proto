@@ -17,7 +17,7 @@ MonoBehaviour:
   developerNotes: 
   unlockWave: 4
   retireWave: 0
-  spawnWeight: 4
+  spawnWeight: 6
   allowInClassic: 1
   allowInSurvival: 1
   allowInConstructor: 1
