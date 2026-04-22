@@ -35,6 +35,12 @@ public class ArenaEnemyPoolModifierPipeline : MonoBehaviour
     {
         CacheModifiers();
     }
+    public int ConfiguredModifierCount => cachedModifiers.Count;
+
+    public void RefreshModifierCache()
+    {
+        CacheModifiers();
+    }
 
     public void ApplyPoolModifiers(
         ArenaRunContext runContext,

@@ -49,6 +49,10 @@ public class ArenaModeController : MonoBehaviour
 
     [SerializeField] private ArenaRunSummaryBuilder arenaRunSummaryBuilder;
 
+    [SerializeField] private ArenaSceneRegistry arenaSceneRegistry;
+
+    [SerializeField] private ArenaModifierCoordinator arenaModifierCoordinator;
+
     private IArenaDirector classicDirector;
     private IArenaDirector survivalDirector;
     private IArenaDirector constructorDirector;
@@ -123,6 +127,7 @@ public class ArenaModeController : MonoBehaviour
 
     public bool PrepareRun()
     {
+        
         if (!ValidateSelectedConfigs())
             return false;
 
@@ -136,6 +141,20 @@ public class ArenaModeController : MonoBehaviour
         {
             Debug.LogWarning("ArenaModeController: не назначен ArenaWaveSpawner.");
             return false;
+        }
+
+        if (arenaSceneRegistry != null)
+        {
+            bool arenaActivated = arenaSceneRegistry.TryActivateArena(
+                selectedArenaConfig,
+                arenaWaveSpawner
+            );
+
+            if (!arenaActivated)
+            {
+                Debug.LogWarning("ArenaModeController: не удалось активировать выбранную арену.");
+                return false;
+            }
         }
 
         CacheDirectors();
@@ -160,6 +179,12 @@ public class ArenaModeController : MonoBehaviour
             selectedGameMode,
             selectedModeRulesProfile
         );
+
+
+        if (arenaModifierCoordinator != null)
+        {
+            arenaModifierCoordinator.InitializeForRun(currentRunContext);
+        }
 
         activeDirector.Initialize(currentRunContext);
 
@@ -315,6 +340,8 @@ public class ArenaModeController : MonoBehaviour
 
         if (showDebugLogs)
             Debug.Log("ArenaModeController: забег завершён.");
+
+        arenaModifierCoordinator?.ClearRun();
     }
 
     private bool ValidateSelectedConfigs()

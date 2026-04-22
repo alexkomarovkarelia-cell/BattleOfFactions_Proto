@@ -44,6 +44,17 @@ public class ArenaWaveSpawner : MonoBehaviour
     private WaveExecutionPlan currentPlan;
     private readonly List<TrackedArenaEnemy> trackedEnemies = new List<TrackedArenaEnemy>();
 
+    public void SetSpawnZones(SpawnZone[] newSpawnZones)
+    {
+        if (newSpawnZones == null || newSpawnZones.Length == 0)
+        {
+            Debug.LogWarning("ArenaWaveSpawner: SetSpawnZones получил пустой массив зон.");
+            return;
+        }
+
+        spawnZones = newSpawnZones;
+    }
+
     public bool StartWave(WaveExecutionPlan plan)
     {
         if (plan == null)

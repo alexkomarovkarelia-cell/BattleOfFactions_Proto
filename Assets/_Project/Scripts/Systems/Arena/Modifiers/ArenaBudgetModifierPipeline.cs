@@ -51,6 +51,13 @@ public class ArenaBudgetModifierPipeline : MonoBehaviour
         CacheModifiers();
     }
 
+    public int ConfiguredModifierCount => cachedModifiers.Count;
+
+    public void RefreshModifierCache()
+    {
+        CacheModifiers();
+    }
+
     // Применяем все найденные модификаторы по очереди.
     public int ApplyBudgetModifiers(ArenaRunContext runContext, int waveNumber, int baseBudget)
     {
