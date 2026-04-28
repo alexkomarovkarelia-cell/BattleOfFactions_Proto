@@ -1,93 +1,58 @@
 ﻿using UnityEngine;
 
 // PlayerHealth
-// Здоровье игрока.
+// Теперь здоровье игрока уже НЕ обновляет HUD полоску напрямую.
 //
-// Важно:
-// Теперь PlayerHealth НЕ хранит всю общую логику здоровья.
-// Общая логика переехала в ObjectHealth.
+// Что здесь остаётся:
+// - реакция игрока на получение урона
+// - реакция игрока на смерть
+// - временный мост к HUD только для ShowGameOver
 //
-// Здесь остаётся только то,
-// что относится ИМЕННО к игроку:
-// - звук получения урона
-// - показ Game Over
-// - временный мост к HUD
-//
-// В следующем подблоке мы сможем ещё чище отвязать PlayerHealth от HUD.
+// Что уже вынесено наружу:
+// - обновление HP в HUD
+// Этим теперь занимается отдельный PlayerHealthHudBridge.
 
 public class PlayerHealth : ObjectHealth
 {
-    [Header("Temporary HUD Bridge")]
+    [Header("Temporary Death UI Bridge")]
     [SerializeField] private HUDController hud;
-    // Пока оставляем HUD здесь как ПЕРЕХОДНЫЙ МОСТ,
-    // чтобы ничего не сломать на Этапе 7A.
+    // Пока оставляем HUD здесь только для показа поражения.
     //
-    // Но важно:
-    // теперь HUD обновляется НЕ из TakeDamage(),
-    // а через подписку на событие OnHealthChanged.
+    // Это ВРЕМЕННЫЙ переходный шаг.
+    // HP уже не обновляется отсюда.
+    // Позже поражение тоже можно будет вынести в отдельный bridge/presenter.
 
     private CharacterSFX3D sfx3D;
 
     protected override void Awake()
     {
-        // 1) Берём 3D звук с игрока
+        // Звук игрока
         sfx3D = GetComponent<CharacterSFX3D>();
 
-        // 2) Если HUD не назначен вручную —
-        // пытаемся найти его на сцене
+        // Пока оставляем поиск HUD для Game Over
         if (hud == null)
             hud = FindFirstObjectByType<HUDController>();
 
-        // 3) Инициализируем базовое здоровье
+        // Инициализируем базовое здоровье
         base.Awake();
     }
 
-    private void OnEnable()
-    {
-        // Подписываемся на изменение здоровья.
-        OnHealthChanged += HandleHealthChanged;
-    }
-
-    private void OnDisable()
-    {
-        // Очень важно отписываться,
-        // чтобы не было лишних подписок и ошибок.
-        OnHealthChanged -= HandleHealthChanged;
-    }
-
-    private void Start()
-    {
-        // Так как базовый Awake мог вызваться до подписки,
-        // один раз вручную синхронизируем HUD при старте.
-        HandleHealthChanged(CurrentHealth, MaxHealth);
-    }
-
-    // Реакция игрока на получение урона.
     protected override void OnDamageTaken(int damageAmount, bool isLethal)
     {
-        // У игрока звук попадания играем при любом уроне,
-        // даже если удар оказался смертельным.
         sfx3D?.PlayHit();
     }
 
-    // Реакция игрока на смерть.
     protected override void OnDeath()
     {
         Debug.Log("Player died!");
 
-        // Пока оставляем как есть:
-        // HUD показывает поражение.
+        // Пока ShowGameOver оставляем здесь,
+        // чтобы не раздувать шаг 7B.
         hud?.ShowGameOver();
 
         // Позже сюда можно добавить:
         // - отключение управления
         // - анимацию смерти
         // - блокировку атаки
-    }
-
-    // Временный мост между базовым событием и текущим HUD.
-    private void HandleHealthChanged(int current, int max)
-    {
-        hud?.SetHealth(current, max);
     }
 }
