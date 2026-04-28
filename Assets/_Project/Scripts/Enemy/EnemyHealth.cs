@@ -1,139 +1,123 @@
 ﻿using System.Collections;
 using UnityEngine;
 
-// EnemyHealth — отвечает только за здоровье врага и смерть.
-// НЕ двигает, НЕ атакует, НЕ хранит шансы дропа.
+// EnemyHealth
+// Теперь это здоровье КОНКРЕТНО врага,
+// построенное поверх общей базы ObjectHealth.
+//
+// Общая логика здоровья уже живёт в ObjectHealth.
+// Здесь остаётся только то,
+// что относится именно к врагу:
+// - вспышка при попадании
+// - VFX смерти
+// - отключение AI
+// - дроп
+// - уведомление системе волн
+// - удаление объекта
+
 [RequireComponent(typeof(Collider))]
-
-
-public class EnemyHealth : MonoBehaviour
+public class EnemyHealth : ObjectHealth
 {
-    [Header("Здоровье")]
-    [SerializeField] private int maxHealth = 50; // максимум HP
-    [SerializeField] private int currentHealth;  // текущее HP
-
     [Header("Смерть")]
-    [SerializeField] private float destroyDelay = 2f; // через сколько секунд удалить объект
+    [SerializeField] private float destroyDelay = 2f;
 
     [Header("VFX (эффекты)")]
     [SerializeField] private GameObject deathVfxPrefab;
-    // Сюда перетащишь префаб эффекта смерти (например VFX_EnemyDeath)
-
     [SerializeField] private Vector3 deathVfxOffset = new Vector3(0f, 0.5f, 0f);
-    // Смещение эффекта вверх, чтобы не "в полу". Можно менять в инспекторе.
 
     [Header("Визуальная реакция (мигание)")]
     [SerializeField] private float flashTime = 0.1f;
 
-    private bool isDead = false;
-
     private Renderer rend;
     private Color originalColor;
-
-    // Чтобы другие скрипты могли узнать, жив враг или нет
-    public bool IsDead => isDead;
-
-
-    // Текущее здоровье врага (только чтение)
-    // Нужно для UI цели, логики таргета и будущего показа HP
-    public int CurrentHealth => currentHealth;
-
-    // Максимальное здоровье врага (только чтение)
-    // Нужно для UI цели, логики таргета и будущего показа HP
-    public int MaxHealth => maxHealth;
-
     private CharacterSFX3D sfx3D;
-    // Базовое значение HP, чтобы мы могли честно умножать от "оригинала"
+
+    // Базовое значение maxHealth из инспектора.
+    // Нужно, чтобы ApplyDifficulty честно умножал
+    // исходное, а не уже изменённое значение.
     private int baseMaxHealth;
 
-    private void Awake()
+    protected override void Awake()
     {
-        currentHealth = maxHealth;
+        // Сначала инициализируем базовое здоровье
+        base.Awake();
 
         rend = GetComponent<Renderer>();
         if (rend != null)
             originalColor = rend.material.color;
-        //Звук 3Д
+
         sfx3D = GetComponent<CharacterSFX3D>();
-        baseMaxHealth = maxHealth; // запоминаем исходное значение из инспектора
+
+        // Запоминаем исходный maxHealth
+        baseMaxHealth = MaxHealth;
     }
 
-    // Это будет вызывать игрок (меч/пуля/удар)
-    public void TakeDamage(int damage)
+    // Реакция врага на получение урона
+    protected override void OnDamageTaken(int damageAmount, bool isLethal)
     {
-        if (isDead) return;
-        if (damage <= 0) return;
-
-        currentHealth -= damage;
-
-        // Лёгкая реакция: мигнуть белым
-        if (rend != null)
-            StartCoroutine(DamageFlash());
-
-        // ✅ Если умер — уходим в Die (там будет PlayDeath)
-        if (currentHealth <= 0)
+        // Если удар НЕ смертельный —
+        // мигаем и играем звук попадания.
+        //
+        // Это сохраняет поведение, близкое к твоему текущему.
+        if (!isLethal)
         {
-            Die();
-            return;
-        }
+            if (rend != null)
+                StartCoroutine(DamageFlash());
 
-        // ✅ Если выжил — играем звук получения удара
-        sfx3D?.PlayHit();
+            sfx3D?.PlayHit();
+        }
+    }
+
+    // Реакция врага на смерть
+    protected override void OnDeath()
+    {
+        // 0) Сначала эффект смерти
+        SpawnDeathVfx();
+
+        // 1) Отключаем движение
+        EnemyChase chase = GetComponent<EnemyChase>();
+        if (chase != null)
+            chase.enabled = false;
+
+        // 2) Отключаем ближнюю атаку
+        EnemyMeleeAttack attack = GetComponent<EnemyMeleeAttack>();
+        if (attack != null)
+            attack.enabled = false;
+
+        // 3) Визуально красим в серый
+        if (rend != null)
+            rend.material.color = Color.gray;
+
+        // 4) Отключаем коллайдер
+        Collider col = GetComponent<Collider>();
+        if (col != null)
+            col.enabled = false;
+
+        // 5) Отключаем физику
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+            rb.isKinematic = true;
+
+        // 6) Дроп лута
+        GetComponent<LootDropper>()?.Drop();
+
+        // 7) Сообщаем системе волн / смерти врага
+        GetComponent<EnemyDeathNotifier>()?.NotifyKilled();
+
+        // 8) Звук смерти
+        sfx3D?.PlayDeath();
+
+        // 9) Удаляем объект через задержку
+        Destroy(gameObject, destroyDelay);
     }
 
     // Спавн эффекта смерти
     private void SpawnDeathVfx()
     {
-        // Если в инспекторе ничего не назначено — просто ничего не делаем
         if (deathVfxPrefab == null) return;
 
-        // Где появится эффект: позиция врага + смещение
         Vector3 pos = transform.position + deathVfxOffset;
-
-        // Создаём эффект в мире
-        // Важно: сам префаб эффекта должен сам уничтожаться (Loop OFF + Stop Action = Destroy)
         Instantiate(deathVfxPrefab, pos, Quaternion.identity);
-    }
-
-    private void Die()
-    {
-        if (isDead) return;
-        isDead = true;
-
-        // 0) СНАЧАЛА спавним VFX смерти (пока враг ещё существует)
-        SpawnDeathVfx();
-
-        // 1) Отключаем движение и атаку, чтобы “труп” ничего не делал
-        EnemyChase chase = GetComponent<EnemyChase>();
-        if (chase != null)
-            chase.enabled = false;
-
-        EnemyMeleeAttack attack = GetComponent<EnemyMeleeAttack>();
-        if (attack != null)
-            attack.enabled = false;
-
-        // 2) Визуально делаем серым
-        if (rend != null)
-            rend.material.color = Color.gray;
-
-        // 3) Отключаем коллайдер
-        var col = GetComponent<Collider>();
-        if (col != null) col.enabled = false;
-
-        // 4) Отключаем физику (если есть Rigidbody)
-        var rb = GetComponent<Rigidbody>();
-        if (rb != null) rb.isKinematic = true;
-
-        // 5) Дроп лута (через отдельный компонент LootDropper)
-        GetComponent<LootDropper>()?.Drop();
-
-        // 6) Сообщаем системе волн/спавнеру (если этот компонент есть)
-        GetComponent<EnemyDeathNotifier>()?.NotifyKilled();
-
-        // 7) Удаляем врага через задержку
-        Destroy(gameObject, destroyDelay);
-
-        sfx3D?.PlayDeath(); // ✅ 3D смерть
     }
 
     private IEnumerator DamageFlash()
@@ -141,18 +125,20 @@ public class EnemyHealth : MonoBehaviour
         rend.material.color = Color.white;
         yield return new WaitForSeconds(flashTime);
 
-        // Если не умер — вернём исходный цвет
-        if (!isDead)
+        // Если враг не умер — возвращаем исходный цвет
+        if (!IsDead)
             rend.material.color = originalColor;
     }
-    // Вызывается спавнером сразу после Instantiate врага
+
+    // Вызывается спавнером после создания врага
     public void ApplyDifficulty(float hpMultiplier)
     {
-        // Защита от странных значений
         if (hpMultiplier <= 0f) hpMultiplier = 1f;
 
-        // Пересчитываем максимум и сразу текущее HP
-        maxHealth = Mathf.Max(1, Mathf.CeilToInt(baseMaxHealth * hpMultiplier));
-        currentHealth = maxHealth;
+        int newMaxHealth = Mathf.Max(1, Mathf.CeilToInt(baseMaxHealth * hpMultiplier));
+
+        // Меняем maxHealth через базовый метод
+        // и сразу восстанавливаем HP до полного.
+        SetMaxHealth(newMaxHealth, true);
     }
 }
