@@ -2,6 +2,15 @@ using UnityEngine;
 
 // EnemyMeleeAttack — отвечает только за атаку вблизи.
 // Движение делает EnemyChase, здоровье — EnemyHealth.
+//
+// Что меняем на этапе 7C:
+// - враг больше не бьёт жёстко PlayerHealth;
+// - враг бьёт общий ObjectHealth у цели.
+//
+// Это важно для архитектуры:
+// источник урона теперь завязан не на конкретный класс игрока,
+// а на общий фундамент значения.
+
 [RequireComponent(typeof(EnemyHealth))]
 public class EnemyMeleeAttack : MonoBehaviour
 {
@@ -10,13 +19,14 @@ public class EnemyMeleeAttack : MonoBehaviour
     [SerializeField] private string playerTag = "Player";
 
     [Header("Атака")]
-    [SerializeField] private float attackRange = 2.0f; // дистанция удара
-    [SerializeField] private int attackDamage = 10;    // урон за удар (int)
-    [SerializeField] private float attackCooldown = 1f; // пауза между ударами
+    [SerializeField] private float attackRange = 2.0f;
+    [SerializeField] private int attackDamage = 10;
+    [SerializeField] private float attackCooldown = 1f;
 
-    private PlayerHealth playerHealth;
+    private ObjectHealth targetHealth;
     private EnemyHealth enemyHealth;
     private float lastAttackTime = -999f;
+
     private int baseAttackDamage;
     private float baseAttackCooldown;
 
@@ -29,12 +39,12 @@ public class EnemyMeleeAttack : MonoBehaviour
 
     private void Start()
     {
-        // Если на враге есть EnemyChase и у него назначена цель — возьмём её
-        var chase = GetComponent<EnemyChase>();
+        // Если на враге есть EnemyChase и у него назначена цель — берём её.
+        EnemyChase chase = GetComponent<EnemyChase>();
         if (chase != null && chase.target != null)
             target = chase.target;
 
-        // Если цель всё ещё не задана — найдём игрока по тегу
+        // Если цель всё ещё не задана — ищем игрока по тегу.
         if (target == null)
         {
             GameObject playerObj = GameObject.FindGameObjectWithTag(playerTag);
@@ -42,39 +52,44 @@ public class EnemyMeleeAttack : MonoBehaviour
                 target = playerObj.transform;
         }
 
-        // Берём PlayerHealth с цели
+        // Вместо PlayerHealth берём общий ObjectHealth.
         if (target != null)
-            playerHealth = target.GetComponent<PlayerHealth>();
+            targetHealth = target.GetComponent<ObjectHealth>();
 
-        if (playerHealth == null)
-            Debug.LogWarning("PlayerHealth не найден — враг не сможет наносить урон.");
+        if (targetHealth == null)
+            Debug.LogWarning("ObjectHealth не найден — враг не сможет наносить урон цели.");
     }
 
     private void Update()
     {
         // Если враг умер — не атакуем
-        if (enemyHealth != null && enemyHealth.IsDead) return;
+        if (enemyHealth != null && enemyHealth.IsDead)
+            return;
 
-        if (target == null || playerHealth == null) return;
+        if (target == null || targetHealth == null)
+            return;
 
-        // Проверяем дистанцию
+        // Если цель уже мертва — тоже не атакуем
+        if (targetHealth.IsDead)
+            return;
+
         float dist = Vector3.Distance(transform.position, target.position);
-        if (dist > attackRange) return;
+        if (dist > attackRange)
+            return;
 
-        // Проверяем кулдаун
-        if (Time.time - lastAttackTime < attackCooldown) return;
+        if (Time.time - lastAttackTime < attackCooldown)
+            return;
 
-        // Наносим урон
-        playerHealth.TakeDamage(attackDamage);
+        targetHealth.TakeDamage(attackDamage);
         lastAttackTime = Time.time;
     }
 
-    // Чтобы видеть радиус атаки в Scene
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
     }
+
     public void ApplyDifficulty(float damageMultiplier, float cooldownMultiplier)
     {
         if (damageMultiplier <= 0f) damageMultiplier = 1f;
